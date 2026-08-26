@@ -1,19 +1,9 @@
 # Non-Functional Requirements (NFR)
 
-> NFRs define the **qualities of the system** — not what it does but how well it does it.
-> The golden rule: every NFR must have a metric. "The system must be fast" is not an NFR.
-> "The P99 latency of the /orders endpoint must be < 200ms under 500 RPS load" is.
-
----
-
-## How to write a measurable NFR?
-
-| Bad | Good |
-|-----|------|
-| "The system must be fast" | "P95 latency must be < 300ms under 1000 concurrent RPS" |
-| "The system must be secure" | "All endpoints require a valid JWT; tokens expire in 1 hour" |
-| "The system must scale" | "The system must support up to 5000 concurrent users without degradation" |
-| "The system must be available" | "Availability SLO: 99.9% monthly (maximum 44 min downtime/month)" |
+> Scale note: Amaranta is a single physical location. These NFRs are sized for that reality —
+> a few hundred products, tens of appointments per day — not for a national e-commerce
+> platform. The goal is to demonstrate correct distributed-systems practice at a realistic,
+> honest scale, not to over-engineer for traffic that will never happen.
 
 ---
 
@@ -21,37 +11,36 @@
 
 | Attribute | Metric | Test condition |
 |-----------|--------|---------------|
-| P95 latency — critical endpoints | < 300ms | Under [N] RPS load |
-| P99 latency — critical endpoints | < 500ms | Under [N] RPS load |
+| P95 latency — critical endpoints | < 300ms | Under 50 concurrent RPS |
+| P99 latency — critical endpoints | < 600ms | Under 50 concurrent RPS |
 | P95 latency — non-critical endpoints | < 1000ms | Normal load |
-| Minimum throughput | [N] RPS | Without degradation |
-| Service startup time | < 30 seconds | Cold start |
+| Minimum throughput | 50 RPS | Without degradation |
+| Service startup time | < 30 seconds | Cold start (Docker Compose) |
 
 **Defined critical endpoints:**
-- `POST /[resource]` — [justification for why it is critical]
-- `GET /[resource]/:id` — [justification]
+- `POST /orders` (sales-service) — checkout is the shop's conversion moment; slow checkout directly loses a sale
+- `POST /appointments` (scheduling-service) — must validate business hours and check for overlaps synchronously; this is the most invariant-heavy write path in the system
+- `GET /products` (catalog-service) — the first screen every customer sees
 
-**Load testing tools:**
-- k6, Apache JMeter, Locust, Gatling
+**Load testing tools:** k6 (run manually against the local Docker Compose environment — no
+CI pipeline exists for this academic delivery)
 
-**Where is it validated?** CI/CD in the staging pipeline before production.
+**Where is it validated?** Manually, before final delivery, against the local environment.
 
 ---
 
 ## NFR-002: Availability
 
-| Environment | SLO | Maintenance window | Max downtime/month |
-|------------|-----|-------------------|-------------------|
-| Production | 99.9% | Sundays 2am-4am | 44 minutes |
-| Staging | 95% | No restriction | 36 hours |
-
-**Monthly error budget in production:** 44 minutes
-**Error Budget policy:** If > 50% of the error budget is consumed in the first half of the month,
-feature deploys are frozen until the next month and stability is prioritized.
+| Environment | SLO | Notes |
+|------------|-----|-------|
+| Local (the only environment built for this delivery) | Best-effort — no formal SLO | Availability targets apply once/if the project is deployed beyond the local Docker Compose environment |
 
 **Health checks:**
 - `GET /health` — Liveness: responds 200 if the process is alive
-- `GET /health/ready` — Readiness: responds 200 only if it can process traffic (DB connected, dependencies OK)
+- `GET /health/ready` — Readiness: responds 200 only if it can process traffic (DB connected, RabbitMQ connected, Consul-registered)
+
+> Formal SLO/error-budget tracking (as described in the framework's generic NFR-002) is
+> deferred to a future, non-academic deployment — see `01-context/scope.md`.
 
 ---
 
@@ -59,13 +48,12 @@ feature deploys are frozen until the next month and stability is prioritized.
 
 | Scenario | Expected behavior |
 |---------|------------------|
-| Gradual load growth | Horizontal auto-scaling activated when CPU > 70% |
-| Sudden spike (Black Friday, etc.) | System scales in < 2 minutes |
-| Load reduction | Scale-down without interrupting active traffic |
-| Horizontal scaling limit | Up to [N] instances per service |
+| Normal load (single-location traffic) | A single instance per service comfortably handles Amaranta's real volume |
+| Kubernetes manifests still express replica counts and HPA thresholds | So the same deployment definitions would scale correctly if Amaranta opened a second location — this is what the course evaluates, even though local load never approaches it |
+| Horizontal scaling limit | Up to 3 replicas per service in the local K8s manifests (demonstration value, not a real capacity need) |
 
-**Strategy:** Stateless horizontal scaling — each instance does not store state in memory.
-State goes in Redis (sessions, cache) or PostgreSQL (persistent data).
+**Strategy:** Stateless horizontal scaling — each service instance stores no in-memory session
+state. Session/auth state is in the JWT itself; nothing else needs Redis for the MVP.
 
 ---
 
@@ -73,25 +61,19 @@ State goes in Redis (sessions, cache) or PostgreSQL (persistent data).
 
 ### Authentication and Authorization
 - All private endpoints require a valid JWT in the `Authorization: Bearer <token>` header
-- JWT tokens expire in **1 hour**
-- Refresh tokens valid for **7 days**
-- RBAC (Role-Based Access Control): roles defined in `00-governance/security-policy.md`
+- JWT tokens expire in **1 hour**; refresh tokens in **7 days** with rotation on each use
+- RBAC roles and permissions: `00-governance/security-policy.md`
 
 ### Data transmission
-- HTTPS mandatory in production (TLS 1.2+)
-- HTTP only in local development
+- HTTPS in any non-local environment; HTTP is acceptable only for the local Docker Compose environment this project ships
 
 ### Sensitive data
-- Passwords: hashing with bcrypt (cost factor ≥ 12) or Argon2id
-- PII (personal data): encrypted at rest
-- Secrets/keys: only in environment variables or vault, **never in code**
+- Passwords: bcrypt, cost factor ≥ 12
+- Secrets (DB credentials, JWT signing key, RabbitMQ credentials): environment variables only,
+  loaded from a local `.env` file that is git-ignored — never committed
 
 ### OWASP Top 10
-Code must be reviewed against the OWASP Top 10 on each release.
-Tools: SAST (SonarQube/Snyk), dependency scanning, DAST in staging.
-
-### Regulatory compliance
-- [GDPR / Habeas Data / PCI-DSS / etc.] — as applicable to the project
+See the full checklist and code-level controls in `00-governance/security-rules.md`.
 
 ---
 
@@ -99,12 +81,15 @@ Tools: SAST (SonarQube/Snyk), dependency scanning, DAST in staging.
 
 | Pillar | Requirement | Tool |
 |--------|------------|------|
-| Logs | Structured JSON format + Correlation ID | Winston / Logback |
-| Metrics | RED (Rate, Errors, Duration) per endpoint | Prometheus + Grafana |
-| Traces | End-to-end distributed traces | OpenTelemetry + Jaeger |
-| Alerts | Alert in < 5 min when SLI violates SLO | Alertmanager / PagerDuty |
+| Logs | Structured JSON format + Correlation ID | Pino (matches the Node.js/TypeScript stack guide) |
+| Metrics | RED (Rate, Errors, Duration) per endpoint | Prometheus (local, via Docker Compose) |
+| Traces | End-to-end distributed traces across the checkout and booking flows | OpenTelemetry + Jaeger (local) |
+| Dashboards | Basic Grafana dashboard for the two critical flows (checkout, booking) | Grafana (local) |
 
-**Correlation ID:** Each external request generates a UUID correlationId propagated in all logs and spans of that transaction.
+**Correlation ID:** Each external request generates a UUID `correlationId`, propagated through
+the API Gateway into every downstream REST call and event `metadata.correlationId`, so a single
+checkout or booking can be traced across `sales-service` → `catalog-service` →
+`notification-service` in the logs.
 
 ---
 
@@ -112,50 +97,49 @@ Tools: SAST (SonarQube/Snyk), dependency scanning, DAST in staging.
 
 | Metric | Target |
 |--------|--------|
-| Test coverage | ≥ 80% of lines (≥ 90% in the domain) |
+| Test coverage | ≥ 80% of lines, ≥ 90% in each service's `domain/` layer (aggregates and invariants) |
 | Cyclomatic complexity | ≤ 10 per function |
-| Technical debt | Resolution time < 1 sprint from registration |
-| Onboarding time | A new dev can deploy locally in < 1 hour following `10-devops/local-setup.md` |
-| Average build time | < 5 minutes in CI |
+| Onboarding time | A new developer can run the full system locally in < 1 hour following `10-devops/local-setup.md` |
+| Average build time | < 5 minutes per service (`npm run build`) |
 
 ---
 
 ## NFR-007: Portability
 
-- All services are deployed as Docker images
-- Images work in any environment with Kubernetes 1.28+
+- All 6 microservices + API Gateway are packaged as Docker images and orchestrated with Docker
+  Compose locally
+- Kubernetes manifests (Helm charts) express the same topology for a future non-local deployment
 - No service depends on the host operating system
 - Environment variables are the only source of environment-specific configuration
+- **Database portability:** every service uses Prisma ORM against PostgreSQL by default; moving
+  a single service to MySQL or SQL Server is a `datasource.provider` change plus a
+  re-generated migration — no application code changes (see ADR-002)
 
 ---
 
-## NFR-008: Disaster Recovery (DR / Recovery)
+## NFR-008: Disaster Recovery
 
-| Scenario | RTO (Recovery Time Objective) | RPO (Recovery Point Objective) |
-|---------|------------------------------|-------------------------------|
-| Single service failure | < 2 minutes (K8s restart) | 0 (stateless) |
-| Primary database failure | < 5 minutes (failover to replica) | < 1 second (synchronous replication) |
-| Availability zone loss | < 15 minutes | < 5 minutes |
-| Full region disaster | < 4 hours (DR in secondary region) | < 1 hour |
+Out of scope for this academic, local-only delivery — Amaranta runs a single Docker Compose
+environment with no production traffic. This section is intentionally deferred to a future,
+non-academic deployment (see `01-context/scope.md`, "Out of Scope").
 
 ---
 
 ## NFR priority matrix
 
-| NFR | Priority (P1/P2/P3) | Validated in CI? | Owner |
+| NFR | Priority (P1/P2/P3) | Validated how? | Owner |
 |-----|---------------------|-----------------|-------|
-| Performance | P1 | Yes (k6 in staging) | [Tech Lead] |
-| Availability | P1 | Yes (health checks) | [DevOps] |
-| Security | P1 | Yes (SAST + OWASP) | [Security] |
-| Scalability | P2 | Manual (quarterly) | [DevOps] |
-| Observability | P1 | Yes (smoke test in CI) | [Tech Lead] |
-| Maintainability | P2 | Yes (coverage in CI) | [Team] |
+| Performance | P2 | Manual k6 run before delivery | Full-stack developer |
+| Availability | P3 | Health checks only (local) | Full-stack developer |
+| Security | P1 | Manual OWASP checklist review + code review against `security-rules.md` | Full-stack developer |
+| Scalability | P3 | K8s manifests reviewed, not load-tested at scale | Full-stack developer |
+| Observability | P2 | Manual trace inspection of the checkout/booking flow | Full-stack developer |
+| Maintainability | P1 | Jest coverage report | Full-stack developer |
 
 ---
 
 ## Correlations
 
-- Detailed SLOs and SLAs → `13-operations/README.md`
+- Detailed SLOs → deferred, see NFR-002/NFR-008 above
 - Pipeline that validates NFRs → `10-devops/README.md`
-- Incidents related to NFR violations → `13-operations/incident-management.md`
-- Security checklist → `00-governance/security-policy.md`
+- Security checklist → `00-governance/security-policy.md`, `00-governance/security-rules.md`

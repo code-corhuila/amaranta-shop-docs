@@ -48,25 +48,34 @@
 
 | Role | Description | Permissions |
 |------|-------------|------------|
-| `SUPER_ADMIN` | System technical administrator | All |
-| `ADMIN` | Business administrator | [define] |
-| `OPERATOR` | Operator with write permissions | [define] |
-| `VIEWER` | Read-only | [define] |
-| `[CUSTOM_ROLE]` | [description] | [define] |
+| `ADMIN` | Owner / store-and-clinic manager. Full business visibility. | `*:*` (all resources, all actions), including `users:manage-roles` and `reports:export` |
+| `RECEPTIONIST` | Front-desk staff at the physical Amaranta location. Books/manages appointments and rings up in-store sales on behalf of walk-in customers. | `appointments:create`, `appointments:read`, `appointments:update`, `orders:create`, `orders:read`, `products:read`, `pets:read`, `pets:create`, `users:create` (to register a walk-in customer) |
+| `VETERINARIAN` | Clinical staff performing medical consultations, vaccinations, and surgery. | `appointments:read`, `appointments:update` (their own agenda), `clinical-records:create`, `clinical-records:read`, `clinical-records:update`, `pets:read` |
+| `GROOMER` | Clinical staff performing grooming/bathing services. | `appointments:read`, `appointments:update` (their own agenda), `pets:read` |
+| `CUSTOMER` | Registered pet owner using the storefront (web or in-store self-service kiosk). | `products:read`, `orders:create`, `orders:read` (own orders only), `appointments:create`, `appointments:read` (own appointments only), `pets:create`, `pets:read` (own pets only), `clinical-records:read` (own pets only) |
 
 **Permission model:**
 
 ```
 Permission: [resource]:[action]
 
-Examples:
+Examples used in Amaranta:
+  products:read
   orders:create
   orders:read
-  orders:update
-  orders:delete
-  users:read
+  appointments:create
+  appointments:update
+  pets:create
+  pets:read
+  clinical-records:create
+  clinical-records:read
+  users:manage-roles
   reports:export
 ```
+
+> Ownership rule: for `CUSTOMER`, "read own" is enforced in the use case by comparing the
+> resource's `ownerId`/`customerId` against `req.user.sub` from the JWT — never by trusting
+> a client-supplied ID (see `00-governance/security-rules.md`, A01).
 
 **Validation:**
 - The API Gateway validates the JWT (signature and expiration)

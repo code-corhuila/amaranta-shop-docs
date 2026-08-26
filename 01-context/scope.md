@@ -1,69 +1,76 @@
 # System Scope
 
-> **Why this document exists:** Scope prevents scope creep and aligns expectations.
-> It is equally important to define what the system does NOT do as what it does.
-> Review this document at the start of each planning cycle.
-
 ---
 
 ## In Scope
-
-What the system **DOES build and maintain**:
 
 ### MVP Features
 
 | # | Feature | Description | Responsible service |
 |---|---------|-------------|---------------------|
-| 1 | [Feature A] | [Brief description] | [service-name] |
-| 2 | [Feature B] | [Brief description] | [service-name] |
-| 3 | [Feature C] | [Brief description] | [service-name] |
+| 1 | Account registration & login | Customers and staff register/authenticate with email + password; JWT issued with role claim | identity-service |
+| 2 | Product catalog browsing | Product grid with photo, name, description, category, and price in COP | catalog-service |
+| 3 | Shopping cart & checkout | Add/remove products, view cart total, place an order (online or in-store) | sales-service |
+| 4 | Stock tracking | Stock is decremented on order confirmation; out-of-stock products cannot be added to the cart | catalog-service |
+| 5 | Appointment booking | Book a clinic appointment (medical consult, vaccination, grooming/bath, surgery) inside business hours only | scheduling-service |
+| 6 | Double-booking prevention | Two appointments cannot be assigned to the same professional at overlapping times | scheduling-service |
+| 7 | Pet registration | A customer or receptionist registers a pet (species, breed, birth date) linked to an owner | clinical-service |
+| 8 | Medical history | Vet records diagnosis/treatment notes per appointment, visible to the pet's owner | clinical-service |
+| 9 | Order & appointment confirmations | Email notification sent when an order is placed or an appointment is booked/cancelled | notification-service |
+| 10 | Admin / receptionist panel | Staff-only screens to register walk-in customers, sell products, and book appointments on their behalf | sales-service, scheduling-service (frontend routes gated by role) |
+| 11 | Role-based access control | Five roles (`CUSTOMER`, `RECEPTIONIST`, `VETERINARIAN`, `GROOMER`, `ADMIN`) restrict what each screen and endpoint allows | identity-service (issued in JWT), enforced per service |
 
 ### Included integrations
 
 | External system | Integration type | Purpose |
 |----------------|-----------------|---------|
-| [System A] | REST API / Webhook / SDK | [purpose] |
-| [System B] | SFTP / Database | [purpose] |
+| SMTP provider (e.g. a transactional email service) | Outbound email | Order and appointment confirmations/reminders sent by `notification-service` |
+
+> No payment gateway integration is in scope for the MVP — orders are marked `PAID` manually by
+> staff at checkout (cash/card handled physically at the counter), since Amaranta operates from a
+> single physical location today. Online payment is a future-version candidate.
 
 ### Environments being built
 
 | Environment | Purpose |
 |-------------|---------|
-| Local | Development on the developer's machine |
-| Development (dev) | Continuous integration and development testing |
-| Staging | Pre-production, PO acceptance testing |
-| Production | Production environment |
+| Local | Development on the developer's machine via Docker Compose — this is the **only** environment built for this course delivery |
+| Development (dev) | Future environment once the project moves beyond the academic MVP |
+| Staging | Future environment |
+| Production | Future environment |
 
 ---
 
 ## Out of Scope
 
-What the system **does NOT build** in this version and why:
-
 | # | What is out of scope | Reason | Future version? |
 |---|---------------------|--------|----------------|
-| 1 | [Feature X] | [Out of budget / Not MVP / Uses external system] | Yes — H2 2024 |
-| 2 | [Integration with Y] | [Provider has no public API yet] | Pending provider |
-| 3 | [Module Z] | [Another team builds it] | N/A |
+| 1 | Online payment gateway (Stripe/PSE/Wompi) | Amaranta is a single physical location; MVP checkout is cash/card in person | Yes — once a delivery/shipping model exists |
+| 2 | Delivery / shipping of products | No logistics operation exists yet; MVP is pickup-in-store only | Yes |
+| 3 | Native mobile app | React web app covers both desktop and the in-store kiosk use case | Possible — H2, as a wrapper around the same APIs |
+| 4 | Multi-location / multi-tenant support | Amaranta operates one physical location; multi-branch adds a whole context (inventory transfer, branch-scoped appointments) | Yes — if Amaranta opens a second location |
+| 5 | Recurring/subscription orders (e.g. monthly food delivery) | Not part of the current business model | Possible |
+| 6 | SMS notifications | Email is enough to demonstrate the async notification flow for the course; adding a second channel is not additional distributed-systems learning value | Possible |
+| 7 | Push notifications / real-time chat with the vet | Out of the appointment + e-commerce domain this course project targets | Not planned |
+| 8 | Automated CI/CD pipelines to a cloud environment | Everything stays local for this delivery, per explicit instruction — no deploy target exists yet | Yes — once the project leaves the academic phase |
 
 ### What another system / team handles (and why not us)
 
 | Feature | Who builds it | Why not us |
 |---------|--------------|-----------|
-| [SSO Authentication] | Central IAM team | Reuse existing implementation |
-| [Financial reports] | BI system / Analytics team | Outside the core domain |
+| Payment processing | A future payment gateway integration (Stripe/Wompi) | Out of MVP scope — no online payment yet |
+| Accounting / tax reporting | Amaranta's existing accounting process | Outside the core domain of catalog + appointments |
 
 ---
 
 ## Scope assumptions
 
-> These assumptions are taken to be true. If they change, the scope must be renegotiated.
-
 | # | Assumption | Consequence if false |
 |---|-----------|---------------------|
-| 1 | External system [X] has an available REST API | We would have to build the integration differently |
-| 2 | Users use [language / device / etc.] | The UX design would change |
-| 3 | Initial data volume is < [N] records | The database strategy might change |
+| 1 | Amaranta operates a single physical location with one set of business hours (07:00–12:00 and 14:00–18:00) | The `Appointment` invariant that validates business hours would need to become location-aware |
+| 2 | Initial catalog is under 500 products and appointment volume is under 50/day | The chosen NFR performance targets (see `04-requirements/non-functional.md`) remain realistic without extra caching/scaling work |
+| 3 | Users access the system via a modern desktop or mobile browser (no legacy browser support required) | UI/animation choices (Framer Motion, CSS Grid) would need fallbacks |
+| 4 | Prices are always in Colombian Pesos (COP), no multi-currency needed | Money value object and formatting logic would need to change |
 
 ---
 
@@ -71,11 +78,11 @@ What the system **does NOT build** in this version and why:
 
 | Type | Description |
 |------|-------------|
-| **Time** | [MVP must be ready in X weeks / by date Y] |
-| **Budget** | [N development hours / X USD of infrastructure] |
-| **Technology** | [Must use the corporate stack: Java + PostgreSQL] |
-| **Regulatory** | [Must comply with X regulation / certification] |
-| **Team** | [N developers available] |
+| **Time** | Academic delivery for the Sistemas Distribuidos course — documentation phases (00–05) must be ready before any implementation starts |
+| **Budget** | $0 — all technology choices must be free/open-source and runnable locally (Docker) |
+| **Technology** | Must use React (frontend), Node.js (backend), a relational database with an easy-to-swap engine, a message broker, and Docker + Kubernetes, per course requirements |
+| **Regulatory** | No formal regulatory certification required for the academic MVP; PII handling still follows the security policy (`00-governance/security-policy.md`) as good practice |
+| **Team** | 1 developer acting as architect, designer, data analyst, and full-stack developer |
 
 ---
 
@@ -83,21 +90,8 @@ What the system **does NOT build** in this version and why:
 
 | Dependency | Team / Provider | Required date | Status |
 |-----------|----------------|--------------|--------|
-| API of [System X] | [Team name] | [date] | 🟢 Available |
-| Credentials for [Provider Y] | [Contact] | [date] | 🟡 In progress |
-| [Infrastructure Z] | DevOps | [date] | 🔴 Pending |
-
----
-
-## How to update the scope
-
-The scope can change, but the change has a process:
-
-1. Document the proposed change in this file
-2. Evaluate the impact on schedule and effort
-3. Obtain approval from the Product Owner and Tech Lead
-4. Update the roadmap in `03-product/vision.md`
-5. Create or update HUs in `04-requirements/user-stories.md`
+| Docker Desktop / Docker Engine on the development machine | Local environment | Before Sprint 1 implementation | 🟢 Available |
+| SMTP test account (e.g. Mailtrap or a free provider) for `notification-service` | External provider | Before the notifications HU is implemented | 🟡 In progress |
 
 ---
 

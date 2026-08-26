@@ -9,25 +9,25 @@
 
 | Field | Value |
 |-------|-------|
-| Duration | [1 week / 2 weeks / 3 weeks] |
-| Sprint start | [Monday / Tuesday / Wednesday] |
-| Sprint end | [Friday of week N] |
-| Current sprint | Sprint [N] — [start date] to [end date] |
-| Estimated capacity | [N story points per sprint] |
+| Duration | 1 week (academic term with a fixed deadline — short cycles keep progress visible) |
+| Sprint start | Monday |
+| Sprint end | Friday |
+| Current sprint | Sprint 1 — 2026-08-24 to 2026-08-28 (Discovery & Domain modeling) |
+| Estimated capacity | 15–20 story points per sprint (2–3 person team) |
 
 ---
 
 ## Ceremonies
 
 ### Sprint Planning
-- **When:** First day of the sprint — [time]
-- **Duration:** Maximum [1h per week of sprint]
+- **When:** First day of the sprint — 9:00 AM
+- **Duration:** Maximum 1 hour
 - **Who:** Entire team
 - **Goal:** Select and commit to sprint user stories, break down into technical tasks
-- **Output artifact:** Sprint Backlog updated in [tool: Jira / Linear / GitHub Issues]
+- **Output artifact:** Sprint Backlog updated in GitHub Projects
 
 ### Daily Stand-up
-- **When:** Every day — [time]
+- **When:** Every day — 9:00 AM (async update in the team chat is acceptable for a small team)
 - **Duration:** Maximum 15 minutes
 - **Format:**
   1. What did I do yesterday?
@@ -36,20 +36,20 @@
 - **Rule:** Technical discussions happen after the daily, not during it
 
 ### Sprint Review
-- **When:** Last day of the sprint — [time]
-- **Duration:** Maximum [30 min]
+- **When:** Last day of the sprint — 3:00 PM
+- **Duration:** Maximum 30 min
 - **Who:** Team + Product Owner (+ stakeholders if applicable)
 - **Goal:** Show what was built and collect feedback
 
 ### Sprint Retrospective
 - **When:** Last day of the sprint — after the review
-- **Duration:** Maximum [45 min]
-- **Format:** [What went well / What to improve / Action commitments]
+- **Duration:** Maximum 30 min
+- **Format:** What went well / What to improve / Action commitments
 - **Rule:** Each retro produces at least 1 improvement action with an owner and due date
 
 ### Backlog Refinement
-- **When:** [Wednesday of the second week / mid-sprint]
-- **Duration:** Maximum [1h]
+- **When:** Wednesday, mid-sprint
+- **Duration:** Maximum 1h
 - **Goal:** Detail and estimate user stories for the next sprint
 - **Exit criterion:** The user story meets the Definition of Ready
 
@@ -67,8 +67,8 @@
 | 8 | Very large — should be split |
 | 13 | Epic — MUST be split before the sprint |
 
-**Technique:** [Planning Poker / T-shirt sizing]
-**Tool:** [tool name]
+**Technique:** Planning Poker (async, via comments on the GitHub Issue)
+**Tool:** GitHub Issues + Fibonacci labels
 
 ### Estimation rule
 - If there is disagreement of 2+ levels (e.g., someone says 3 and another says 8), discuss before voting again.
@@ -78,8 +78,8 @@
 
 ## Backlog tool
 
-**Tool:** [Jira / Linear / GitHub Projects / Trello]
-**Board URL:** [URL]
+**Tool:** GitHub Projects (Kanban board)
+**Board URL:** Projects tab of the `amaranta-shop-docs` / `amaranta` repository
 
 ### Board columns
 | Column | Meaning |
