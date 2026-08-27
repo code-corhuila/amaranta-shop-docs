@@ -1,0 +1,74 @@
+# Board sync — mueve el Status del board segun el ciclo de vida del issue.
+# Vive en el repo -docs (ahi viven epicas/HU). Requiere:
+#   - secret de organizacion PROJECT_TOKEN_CODE_CORHUILA (fine-grained PAT,
+#     Organization -> Projects: Read and write; sin acceso a repos)
+#   - variable de repo BOARD_NUMBER (numero del Project del equipo)
+# Reglas: opened->Backlog, reopened->In Progress, closed->Done (DoD).
+name: Board sync
+
+on:
+  issues:
+    types: [opened, reopened, closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: board-sync-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move issue card to the right Status
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN_CODE_CORHUILA }}
+          ORG: code-corhuila
+          BOARD_NUMBER: ${{ vars.BOARD_NUMBER }}
+          ISSUE_NODE: ${{ github.event.issue.node_id }}
+          EVENT: ${{ github.event.action }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BOARD_NUMBER:-}" ]; then
+            echo "::error::Falta la variable de repo BOARD_NUMBER"; exit 1
+          fi
+          case "$EVENT" in
+            opened)   STATUS="Backlog" ;;
+            reopened) STATUS="In Progress" ;;
+            closed)   STATUS="Done (DoD)" ;;
+            *) echo "Evento $EVENT ignorado"; exit 0 ;;
+          esac
+          echo "Evento=$EVENT -> Status='$STATUS' (board #$BOARD_NUMBER)"
+
+          # 1) Project id + Status field id + option id para $STATUS
+          META=$(gh api graphql -f query='
+            query($org:String!,$num:Int!){
+              organization(login:$org){ projectV2(number:$num){
+                id
+                field(name:"Status"){ ... on ProjectV2SingleSelectField { id options { id name } } }
+              } }
+            }' -F org="$ORG" -F num="$BOARD_NUMBER")
+
+          PROJECT_ID=$(echo "$META" | jq -r '.data.organization.projectV2.id')
+          FIELD_ID=$(echo "$META"   | jq -r '.data.organization.projectV2.field.id')
+          OPTION_ID=$(echo "$META"  | jq -r --arg s "$STATUS" '.data.organization.projectV2.field.options[] | select(.name==$s) | .id')
+
+          if [ -z "$OPTION_ID" ] || [ "$OPTION_ID" = "null" ]; then
+            echo "::error::No se hallo la opcion de Status '$STATUS'"; exit 1
+          fi
+
+          # 2) Agregar el issue al board (idempotente: devuelve el item existente)
+          ITEM_ID=$(gh api graphql -f query='
+            mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p, contentId:$c}){ item { id } } }
+          ' -F p="$PROJECT_ID" -F c="$ISSUE_NODE" --jq '.data.addProjectV2ItemById.item.id')
+
+          # 3) Setear el Status
+          gh api graphql -f query='
+            mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){
+              updateProjectV2ItemFieldValue(input:{
+                projectId:$p, itemId:$i, fieldId:$f, value:{ singleSelectOptionId:$o }
+              }){ projectV2Item { id } }
+            }' -F p="$PROJECT_ID" -F i="$ITEM_ID" -F f="$FIELD_ID" -F o="$OPTION_ID" >/dev/null
+
+          echo "OK: issue movido a '$STATUS' en el board #$BOARD_NUMBER"
