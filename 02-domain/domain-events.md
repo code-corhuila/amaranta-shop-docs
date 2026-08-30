@@ -1,196 +1,228 @@
 # Domain Events
 
-> **What to fill in here:** A domain event is a fact that occurred in the business.
-> They are the backbone of asynchronous communication between bounded contexts.
-> The name is ALWAYS in past tense and in the ubiquitous language of the domain.
-
 ---
 
 ## What is a domain event?
 
-A **Domain Event** communicates that something important occurred in the business.
-It is an immutable message that describes the fact in past tense.
-
-```
-✓ OrderCreated
-✓ PaymentRejected
-✓ UserRegistered
-✓ StockDepleted
-
-✗ CreateOrder (this is a command, not an event)
-✗ OrderUpdated (too generic — what changed?)
-✗ OrderEvent (does not indicate what occurred)
-```
-
-### Difference between Command and Event
-
-| Concept | Intent | Tense | Can fail? |
-|---------|--------|-------|-----------|
-| **Command** | Instruction to do something | Present | Yes |
-| **Event** | Notification of something that occurred | Past | No (it already happened) |
-
-```
-User → [CreateOrder] → System → [OrderCreated] → Other contexts
-          (Command)                  (Event)
-```
+See `02-domain/README.md` for the general definition. All Amaranta events travel through
+**RabbitMQ** (see ADR-003) as JSON messages on topic exchanges.
 
 ---
 
 ## Event catalog
 
-### Event: [EventName]
+### Event: OrderCreated
 
 | Field | Value |
 |-------|-------|
-| **Name** | `[EventName]` |
-| **Bounded Context** | [Origin context] |
-| **Aggregate** | [Aggregate that generates it] |
-| **Trigger** | [Which business action generates this event] |
-| **Consumers** | [Which services/contexts listen to this event] |
-| **Channel (topic)** | `[topic.name]` |
+| **Name** | `OrderCreated` |
+| **Bounded Context** | Sales |
+| **Aggregate** | Order |
+| **Trigger** | A customer or receptionist submits a cart at checkout |
+| **Consumers** | `catalog-service` (reserve stock), `notification-service` (send confirmation email) |
+| **Channel (topic)** | `sales.order.created` |
 | **Schema version** | `v1` |
-| **Delivery guarantee** | At-least-once / At-most-once / Exactly-once |
+| **Delivery guarantee** | At-least-once |
 
-**Payload (JSON schema):**
+**Payload:**
 
 ```json
 {
-  "eventId": "550e8400-e29b-41d4-a716-446655440000",
-  "eventType": "[EventName]",
-  "aggregateId": "550e8400-e29b-41d4-a716-446655440001",
-  "aggregateType": "[AggregateName]",
-  "occurredAt": "2024-01-15T10:30:00Z",
+  "eventId": "uuid",
+  "eventType": "OrderCreated",
+  "aggregateId": "order-uuid",
+  "aggregateType": "Order",
+  "occurredAt": "2026-08-25T15:10:00Z",
   "version": 1,
   "payload": {
-    "[field1]": "[type and description]",
-    "[field2]": "[type and description]"
-  },
-  "metadata": {
-    "correlationId": "550e8400-e29b-41d4-a716-446655440002",
-    "causationId": "550e8400-e29b-41d4-a716-446655440003",
-    "userId": "550e8400-e29b-41d4-a716-446655440004"
+    "customerId": "uuid",
+    "channel": "ONLINE",
+    "items": [{ "productId": "uuid", "quantity": 2 }],
+    "totalCOP": 85000
   }
 }
 ```
 
-**Real payload example:**
-
-```json
-{
-  "eventId": "generated-uuid",
-  "eventType": "[EventName]",
-  "aggregateId": "aggregate-uuid",
-  "aggregateType": "[AggregateName]",
-  "occurredAt": "2024-01-15T10:30:00Z",
-  "version": 1,
-  "payload": {
-    "[field1]": "example value",
-    "[field2]": 150.00
-  }
-}
-```
-
-**What do consumers do with this event?**
+**What do consumers do?**
 
 | Consuming service | Action | Idempotent? |
 |------------------|--------|-------------|
-| [Service A] | [Updates its data model] | Yes — uses eventId as idempotency key |
-| [Service B] | [Sends notification] | Yes — checks if notification was already sent |
+| catalog-service | Decrements stock for each item; emits `StockReserved` or, if insufficient, `StockDepleted` | Yes — uses `eventId` as idempotency key |
+| notification-service | Sends an order confirmation email | Yes — checks the delivery log before sending |
+
+---
+
+### Event: StockReserved
+
+| Field | Value |
+|-------|-------|
+| **Name** | `StockReserved` |
+| **Bounded Context** | Catalog |
+| **Trigger** | Stock was successfully decremented for all items of an `OrderCreated` event |
+| **Consumers** | `sales-service` (moves order forward / confirms it can be paid) |
+| **Channel (topic)** | `catalog.stock.reserved` |
+| **Schema version** | `v1` |
+
+### Event: StockDepleted
+
+| Field | Value |
+|-------|-------|
+| **Name** | `StockDepleted` |
+| **Bounded Context** | Catalog |
+| **Trigger** | One or more items in the order no longer have enough stock |
+| **Consumers** | `sales-service` (cancels the order and notifies the customer), `notification-service` |
+| **Channel (topic)** | `catalog.stock.depleted` |
+| **Schema version** | `v1` |
+
+---
+
+### Event: OrderPaid
+
+| Field | Value |
+|-------|-------|
+| **Name** | `OrderPaid` |
+| **Bounded Context** | Sales |
+| **Trigger** | Staff confirms payment was received at the counter |
+| **Consumers** | `notification-service` (payment receipt email) |
+| **Channel (topic)** | `sales.order.paid` |
+| **Schema version** | `v1` |
+
+### Event: OrderCancelled
+
+| Field | Value |
+|-------|-------|
+| **Name** | `OrderCancelled` |
+| **Bounded Context** | Sales |
+| **Trigger** | Order cancelled by staff, or automatically after `StockDepleted` |
+| **Consumers** | `catalog-service` (restores stock for orders that had already reserved it), `notification-service` |
+| **Channel (topic)** | `sales.order.cancelled` |
+| **Schema version** | `v1` |
+
+---
+
+### Event: AppointmentScheduled
+
+| Field | Value |
+|-------|-------|
+| **Name** | `AppointmentScheduled` |
+| **Bounded Context** | Scheduling |
+| **Aggregate** | Appointment |
+| **Trigger** | An appointment passes all invariants (business hours, no double-booking) and is persisted |
+| **Consumers** | `notification-service` (confirmation email) |
+| **Channel (topic)** | `scheduling.appointment.scheduled` |
+| **Schema version** | `v1` |
+
+**Payload:**
+
+```json
+{
+  "eventId": "uuid",
+  "eventType": "AppointmentScheduled",
+  "aggregateId": "appointment-uuid",
+  "aggregateType": "Appointment",
+  "occurredAt": "2026-08-25T15:12:00Z",
+  "version": 1,
+  "payload": {
+    "petId": "uuid",
+    "ownerId": "uuid",
+    "professionalId": "uuid",
+    "serviceType": "VACCINATION",
+    "scheduledAt": "2026-08-27T09:00:00Z",
+    "durationMinutes": 30
+  }
+}
+```
+
+### Event: AppointmentCancelled
+
+| Field | Value |
+|-------|-------|
+| **Name** | `AppointmentCancelled` |
+| **Bounded Context** | Scheduling |
+| **Trigger** | Customer, receptionist, or professional cancels a `PENDING`/`CONFIRMED` appointment |
+| **Consumers** | `notification-service` |
+| **Channel (topic)** | `scheduling.appointment.cancelled` |
+| **Schema version** | `v1` |
+
+### Event: AppointmentCompleted
+
+| Field | Value |
+|-------|-------|
+| **Name** | `AppointmentCompleted` |
+| **Bounded Context** | Scheduling |
+| **Trigger** | The professional marks the appointment as finished |
+| **Consumers** | `clinical-service` (prompts/opens a `MedicalRecord` entry tied to this appointment) |
+| **Channel (topic)** | `scheduling.appointment.completed` |
+| **Schema version** | `v1` |
 
 ---
 
 ## Standard fields for all events
 
-All events must include these fields in the envelope:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `eventId` | UUID | Unique event ID (for idempotency) |
-| `eventType` | string | Event name in PascalCase |
-| `aggregateId` | UUID | ID of the aggregate that generated the event |
-| `aggregateType` | string | Aggregate type |
-| `occurredAt` | ISO 8601 | When the business fact occurred |
-| `version` | integer | Schema version (for evolution) |
-| `payload` | object | Event data (specific per type) |
-| `metadata.correlationId` | UUID | For tracing a transaction across services |
-| `metadata.causationId` | UUID | ID of the event or command that caused this event |
-| `metadata.userId` | UUID | User who initiated the chain (if applicable) |
+Same envelope defined in the framework's `02-domain/README.md` template
+(`eventId`, `eventType`, `aggregateId`, `aggregateType`, `occurredAt`, `version`, `payload`,
+`metadata.correlationId`, `metadata.causationId`, `metadata.userId`) — every Amaranta event
+uses this envelope without exception, enforced by a shared Zod schema in each service.
 
 ---
 
-## Event flow: [Flow name]
-
-> Document here the event flows for the main business processes.
-> Use the Event Storming format: orange=event, blue=command, green=view/policy, yellow=aggregate.
+## Event flow: Checkout
 
 ```
-[Actor]
+Customer / Receptionist
   │
-  │  [CommandA]           [CommandB]           [CommandC]
-  ▼      │                    │                    │
-[AggregateA]          [AggregateB]          [AggregateC]
-  │                        ▲                    ▲
-  │   [EventA]             │   [EventB]         │
-  └──────────────────────▶│──────────────────▶│
-```
-
-### Example: Order creation flow
-
-```
-Customer
-  │
-  │  CreateOrder (command)
+  │  SubmitCart (command)
   ▼
-[Aggregate: Order]
+[Aggregate: Order] (sales-service)
   │
-  │  OrderCreated (event)
-  ├──────────────────────────────────┐
-  │                                   ▼
-  │                          [Service: Inventory]
-  │                          Decrements stock
-  │                          StockReserved (event)
+  │  OrderCreated (event) — topic: sales.order.created
+  ├───────────────────────────────────────────────┐
+  │                                                ▼
+  │                                       [catalog-service]
+  │                                       decrementStock() per item
+  │                                       StockReserved  or  StockDepleted
+  │◀───────────────────────────────────────────────┘
+  │  (on StockReserved: order stays PENDING, ready to be marked PAID at the counter)
+  │  (on StockDepleted: order auto-cancels → OrderCancelled)
   │
-  │  OrderCreated (event)
-  └──────────────────────────────────┐
-                                      ▼
-                            [Service: Notifications]
-                            Sends email to customer
+  │  OrderCreated (event, fan-out)
+  └───────────────────────────────────────────────▶ [notification-service]
+                                                     sends confirmation email
+```
+
+## Event flow: Appointment booking
+
+```
+Customer / Receptionist
+  │
+  │  BookAppointment (command)
+  ▼
+[AppointmentAvailabilityService] (scheduling-service)
+  │  1. validate BusinessHours (INV-APPT-001)
+  │  2. validate no overlap for professionalId (INV-APPT-002)
+  ▼
+[Aggregate: Appointment]
+  │
+  │  AppointmentScheduled (event) — topic: scheduling.appointment.scheduled
+  └───────────────────────────────────────────────▶ [notification-service]
+                                                     sends confirmation email
+
+... later, after the visit ...
+
+[Aggregate: Appointment].complete()
+  │
+  │  AppointmentCompleted (event) — topic: scheduling.appointment.completed
+  └───────────────────────────────────────────────▶ [clinical-service]
+                                                     opens a MedicalRecord entry
 ```
 
 ---
 
 ## Schema evolution strategy
 
-Events are contracts. Changing them in an incompatible way breaks consumers.
-
-### What is a compatible change (does not break)?
-
-```
-✓ Add a new optional field to the payload
-✓ Add a new event type
-✓ Change a required field → optional
-```
-
-### What is an incompatible change (breaks)?
-
-```
-✗ Remove a field from the payload
-✗ Change the type of a field (string → number)
-✗ Change an optional field → required
-✗ Change the event name
-```
-
-### How to evolve a schema without breaking consumers
-
-**Strategy: Version the event**
-
-```
-Step 1: Publish EventV2 (new type with incompatible changes)
-Step 2: Publish both EventV1 and EventV2 during the migration period
-Step 3: Migrate consumers to V2 one by one
-Step 4: Deprecate EventV1 (announce 1 sprint in advance)
-Step 5: Stop publishing EventV1
-```
+Same rule as the framework default (`02-domain/README.md`): additive/optional changes are
+compatible; removing a field, changing its type, or renaming an event is not — a new versioned
+event (`AppointmentScheduledV2`) is published alongside the old one during migration.
 
 ---
 
@@ -198,61 +230,29 @@ Step 5: Stop publishing EventV1
 
 | Event | Origin context | Topic | Consumers | Version |
 |-------|---------------|-------|-----------|---------|
-| [EventA] | [ContextA] | `[topic.a]` | [SvcB, SvcC] | v1 |
-| [EventB] | [ContextB] | `[topic.b]` | [SvcA] | v1 |
+| OrderCreated | Sales | `sales.order.created` | catalog-service, notification-service | v1 |
+| StockReserved | Catalog | `catalog.stock.reserved` | sales-service | v1 |
+| StockDepleted | Catalog | `catalog.stock.depleted` | sales-service, notification-service | v1 |
+| OrderPaid | Sales | `sales.order.paid` | notification-service | v1 |
+| OrderCancelled | Sales | `sales.order.cancelled` | catalog-service, notification-service | v1 |
+| AppointmentScheduled | Scheduling | `scheduling.appointment.scheduled` | notification-service | v1 |
+| AppointmentCancelled | Scheduling | `scheduling.appointment.cancelled` | notification-service | v1 |
+| AppointmentCompleted | Scheduling | `scheduling.appointment.completed` | clinical-service | v1 |
 
 ---
 
 ## Policies — Reactions to events
 
-A **Policy** (or Saga step) describes what happens automatically when an event arrives.
-It is the logic of "whenever X occurs, do Y".
-
-```
-Event:  OrderCreated
-Policy: Whenever an OrderCreated arrives with type=URGENT,
-        emit the command NotifyOperationsTeam
-```
-
 | Trigger event | Policy | Emitted command | Service |
 |--------------|--------|----------------|---------|
-| [EventA] | Whenever [condition], then... | [CommandB] | [ServiceX] |
+| StockDepleted | Whenever an order's stock reservation fails, cancel the order automatically | `CancelOrder` | sales-service |
+| AppointmentCompleted | Whenever an appointment finishes, open a draft medical record for the assigned veterinarian to fill in | `OpenMedicalRecordDraft` | clinical-service |
 
 ---
 
 ## Resilience patterns for events
 
-### At-least-once delivery + Idempotency
-
-The message broker guarantees the event is delivered **at least once** but it may be
-delivered more than once (in case of retries). Consumers must be **idempotent**.
-
-```typescript
-// Idempotent consumer — stores the processed eventId
-async function processOrderCreatedEvent(event: OrderCreated): Promise<void> {
-  // 1. Check if already processed
-  if (await isEventAlreadyProcessed(event.eventId)) {
-    logger.info(`Event ${event.eventId} already processed, ignoring`);
-    return;
-  }
-
-  // 2. Process the event
-  await updateModel(event.payload);
-
-  // 3. Mark as processed (in the same transaction)
-  await markEventProcessed(event.eventId);
-}
-```
-
-### Dead Letter Queue (DLQ)
-
-When an event fails after N retries, it goes to the DLQ.
-
-| Configuration | Recommended value |
-|--------------|------------------|
-| Retries before DLQ | 3-5 |
-| Backoff | Exponential (1s → 2s → 4s → 8s) |
-| DLQ retention | 7 days |
-| Alert | When DLQ has > 0 messages |
-
-> See DLQ runbook in `09-microservices/services/XX-service/runbook.md`
+Same as the framework default: **at-least-once delivery + idempotent consumers** (each
+consumer stores processed `eventId`s), and a **Dead Letter Queue** per service queue with 3–5
+retries, exponential backoff, and 7-day DLQ retention, configured in RabbitMQ (see
+`05-architecture/decisions/records/ADR-003-message-broker.md`).

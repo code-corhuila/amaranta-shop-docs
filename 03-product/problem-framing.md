@@ -1,23 +1,15 @@
 # Problem Framing — Problem Definition
 
-> **Why this document exists:** Before designing solutions, the team must be
-> aligned on the problem it solves. This document captures that alignment.
-> A well-defined problem is already halfway to a solution.
-
 ---
 
 ## 1. The problem in one sentence
 
-> Complete this template:
-
-**[User segment]** who **[usage context]** struggle with **[pain/problem]**
-because **[root cause]**, resulting in **[quantifiable impact]**.
-
-**Example:**
-> **Mid-sized company inventory operators** who **manage catalogs of more than 500 products**
-> struggle with **stock control across multiple warehouses** because **current systems
-> do not support real-time synchronization**, resulting in **15% of orders with stock errors
-> and 3 hours of manual correction work per day**.
+**Amaranta's staff and customers** who **manage pet purchases and clinic appointments through
+phone calls, a paper agenda, and a manual counter register** struggle with **double-booked
+appointments, forgotten confirmations, and no shared view of product stock between in-store and
+future online sales** because **there is no single system tracking a pet, its owner, its
+purchases, and its medical history together**, resulting in **wasted staff time resolving
+scheduling conflicts and no digital record customers can return to**.
 
 ---
 
@@ -25,51 +17,57 @@ because **[root cause]**, resulting in **[quantifiable impact]**.
 
 | Segment | Description | Estimated size | Priority |
 |---------|-------------|---------------|---------|
-| [Segment A] | [Who they are, what they do] | [N users] | High |
-| [Segment B] | [Who they are] | [N users] | Medium |
+| Pet owners (customers) | People who buy products and/or bring their pets for clinical services at Amaranta | Local neighborhood customer base | High |
+| Receptionist | Front-desk staff who currently juggles a phone, a paper agenda, and a manual register | 1 role, on-site every business hour | High |
+| Veterinarians / Groomers | Clinical staff who need a reliable, conflict-free agenda | Small clinical team | High |
+| Business owner (Admin) | Wants visibility into sales and appointment volume without manual reconciliation | 1 | Medium |
 
 ### Jobs-to-be-done (JTBD)
 
-> What job is the user trying to do when they "hire" our product?
+**When** I need to buy food or book a vaccination appointment for my pet,
+**I want** to do it myself, at any hour, without calling and waiting for someone to check a
+paper agenda,
+**so that** I know immediately whether the slot or the product is actually available.
 
-**When** [situation / context],
-**I want** [motivation / what they are trying to achieve],
-**so that** [expected outcome / benefit].
+**When** a customer walks into the store,
+**I want** the receptionist to serve them from the same system a remote customer would use,
+**so that** there is one source of truth for stock and appointment availability, not two.
 
 ---
 
 ## 3. Evidence of the problem
 
-> The problem must be real. Document the evidence you have.
-
 | Evidence type | Source | Date | Key finding |
 |--------------|--------|------|------------|
-| User interviews | [N] interviews with [profile] | [date] | [what they said] |
-| Support data | Support tickets | [period] | [% of tickets on this topic] |
-| Benchmarking | [Competitors / market] | [date] | [how others solve it] |
-| Direct observation | [Shadowing / field research] | [date] | [what was observed] |
+| Direct observation | Amaranta's current phone- and paper-based booking process | 2026-08 | Appointments are tracked on paper with no automatic conflict check; double-booking is possible whenever two people write on the same page |
+| Direct observation | Manual counter register for shop sales | 2026-08 | No link between what is recorded as sold and how much stock physically remains, since online sales don't exist yet but are a near-term goal |
+
+> This is an academic project modeling a real small business; formal user interviews and
+> support-ticket data are not available. Evidence here is based on direct observation of how
+> the business currently operates.
 
 ---
 
 ## 4. Current user solution (and its problems)
 
-> How does the user solve the problem today?
-
 | Current solution | Limitations | Cost/Friction |
 |-----------------|------------|--------------|
-| [Excel / manual process] | [Does not scale, errors, slow] | [X hours/day] |
-| [Legacy system] | [No API, no integration] | [Y errors/week] |
+| Phone calls + paper agenda for appointments | No automatic conflict check, no confirmation record, error-prone under time pressure | Staff time resolving conflicts when two bookings overlap |
+| Manual counter register for sales | No shared stock visibility across channels, no digital order history for a customer to check later | Manual reconciliation, no way to look up "what did I buy last month" |
 
 ---
 
 ## 5. Solution hypothesis
 
-> This is the first draft of the solution direction. It is not a commitment.
-
-**We believe that** [describe the high-level solution]
-**for** [the user segment],
-**will achieve** [the expected benefit].
-**We will know we succeeded when** [specific metric].
+**We believe that** a single web platform where customers self-serve product purchases and
+appointment booking — with the appointment logic enforcing real business hours and
+double-booking prevention at the domain level, not just the UI —
+**for** Amaranta's pet-owner customers and front-desk staff,
+**will achieve** fewer scheduling conflicts, a shared and accurate stock count, and a digital
+history customers and staff can both rely on.
+**We will know we succeeded when** every appointment booked through the system respects
+business hours and never collides with another booking for the same professional, and every
+order placed reflects real, current stock.
 
 ---
 
@@ -77,10 +75,12 @@ because **[root cause]**, resulting in **[quantifiable impact]**.
 
 | Metric | Current baseline | 6-month target | How to measure it |
 |--------|----------------|---------------|-------------------|
-| [Business metric 1] | [current value] | [target value] | [instrument] |
-| [Adoption metric] | [current value] | [target value] | [instrument] |
+| Appointment double-booking incidents | Unknown (not tracked on paper) | 0 — enforced structurally by `AGGR-INV-APPT-002` | Domain invariant test coverage + manual QA |
+| Orders with inaccurate stock at fulfillment | Unknown (no shared stock system exists) | 0 — enforced by the Catalog/Sales event flow | Manual QA of the `OrderCreated` → `StockReserved`/`StockDepleted` flow |
+| Time to book an appointment | Phone call, variable wait | Self-service, under 1 minute | Manual UX walkthrough |
 
-**North Star Metric:** [The single metric that best captures the value delivered]
+**North Star Metric:** Percentage of appointments and orders that complete without a manual
+staff intervention to resolve a conflict or stock mismatch.
 
 ---
 
@@ -88,18 +88,17 @@ because **[root cause]**, resulting in **[quantifiable impact]**.
 
 | Risk | Probability | Impact | Experiment to validate |
 |------|------------|--------|----------------------|
-| [Users will not adopt the change] | High | High | [Pilot with N users] |
-| [The problem is not as frequent as we think] | Medium | High | [Support log analysis] |
+| Non-technical customers/staff find the self-service flow harder than a phone call | Medium | Medium | Usability walkthrough with the actual receptionist before final delivery |
+| Business hours change seasonally and the hardcoded 07:00–12:00/14:00–18:00 rule becomes wrong | Low (for the MVP timeframe) | Medium | Keep `BusinessHours` as a single value object so the rule can move to configuration later without touching the invariant logic |
 
 ---
 
 ## 8. Out of scope (we do not solve)
 
-> Explicitly define which related problems you are NOT solving in this version.
-> This prevents scope creep.
-
-- [Related problem that is out of scope: why]
-- [Feature users ask for but we are not doing now: reason]
+- Online payment processing — out of MVP scope, see `01-context/scope.md`
+- Multi-location scheduling — Amaranta operates a single physical location today
+- Inventory purchasing/supplier management — this system tracks sellable stock, not
+  supplier purchase orders
 
 ---
 
@@ -107,4 +106,3 @@ because **[root cause]**, resulting in **[quantifiable impact]**.
 
 - Product vision → `03-product/vision.md`
 - HUs that implement this solution → `04-requirements/user-stories.md`
-- Detailed KPIs → `13-operations/README.md`

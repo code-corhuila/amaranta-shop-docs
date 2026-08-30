@@ -1,90 +1,90 @@
 # Product Vision
 
-> The vision is the team's north star. All sprints, design decisions,
-> and trade-offs are evaluated against this vision.
-> It must be ambitious yet achievable, inspiring but specific.
-
 ---
 
 ## Vision statement
 
-> Use the Geoffrey Moore template:
-
-**For** [target customer]
-**who** [has the need / faces the problem]
-**the** [product name]
-**is a** [product category]
-**that** [main benefit / reason to choose]
-**unlike** [competing alternative]
-**our product** [key differentiator].
+**For** pet owners and staff at Amaranta,
+**who** need to buy pet products and book clinic appointments without phone calls or paper
+agendas,
+**the** Amaranta platform
+**is a** unified web application combining a pet store and a veterinary clinic booking system
+**that** lets a customer browse products, buy them, register their pets, and book a real,
+conflict-free appointment — the exact same way whether they're at home or being helped by a
+receptionist in-store.
+**Unlike** running the shop's register and the clinic's paper agenda as two separate, disconnected
+processes,
+**our product** gives every pet, order, and appointment one consistent digital record, with
+appointment-hours and double-booking rules enforced by the system itself, not by whoever is
+holding the pen.
 
 ---
 
 ## Team mission
 
-> In 1-2 sentences: why does this team exist? What change in the world does it seek to achieve?
+Give a small, real veterinary + pet-shop business the same quality of software experience a
+much larger company would build — a fast, vivid, trustworthy digital storefront and booking
+system — while using the project as a hands-on demonstration of Domain-Driven Design and
+microservices for the Sistemas Distribuidos course.
 
 ---
 
 ## Strategic pillars
 
-Pillars are the focus areas that take us from mission to vision.
-They should be few (3-5) and consistent over time.
-
 | Pillar | Description | Success metrics |
 |--------|-------------|----------------|
-| [Pillar 1: e.g. Speed] | [What it means for our product] | [KPIs] |
-| [Pillar 2: e.g. Reliability] | [Description] | [KPIs] |
-| [Pillar 3: e.g. Scale] | [Description] | [KPIs] |
+| Reliability of the schedule | Business hours and double-booking rules are enforced as domain invariants, not UI validation, so they can never be silently bypassed | 0 double-booking incidents (see `03-product/problem-framing.md`) |
+| One unified experience | Shop and clinic feel like one branded product, not two apps bolted together, and staff use the exact same screens customers do | Single design system (`12-ux-ui/design-system.md`), shared auth/cart/session across both modes |
+| Distributed-systems correctness | Cross-service consistency (stock vs. orders, appointments vs. medical records) is handled through domain events and idempotent consumers, matching real microservices practice | All 6 bounded contexts deployed as independent services, communicating via REST (sync) + RabbitMQ (async) per the context map |
 
 ---
 
 ## High-level roadmap
 
-> The roadmap shows how the product evolves over time.
-> Horizon 1 (0-3 months): high certainty, detail in HUs
-> Horizon 2 (3-6 months): medium certainty, epics
-> Horizon 3 (6-12 months): low certainty, focus areas
-
 ```
-Q1 2024 ──── Q2 2024 ──── Q3 2024 ──── Q4 2024
-     │              │              │              │
-  [MVP]      [Feature A]    [Feature B]   [Scale]
-  Validate    Expand         Deepen        Grow
-  hypothesis  the market     the value
+Sprint 1-2 ──── Sprint 3-4 ──── Sprint 5-6 ──── Beyond MVP
+     │               │               │               │
+  [MVP core]   [Admin/POS panel] [Polish & QA]  [Payments, delivery,
+  Catalog,      Receptionist-      Notifications,  multi-location]
+  Sales,        assisted flows     full RBAC
+  Scheduling,
+  Clinical
 ```
 
 | Horizon | Period | Objective | Epics / Features | Uncertainty |
 |---------|--------|----------|----------------|-------------|
-| H1 (Now) | [Q1] | [Objective] | [Epic 1, Epic 2] | Low |
-| H2 (Next) | [Q2] | [Objective] | [Epic 3, Area X] | Medium |
-| H3 (Later) | [Q3-Q4] | [Objective] | [Area Y, Area Z] | High |
+| H1 (Now) | Sprint 1–4 | Ship the MVP: browse/buy products, register pets, book appointments, staff-assisted flows | EP-001 Catalog & Sales, EP-002 Scheduling, EP-003 Clinical Records, EP-004 Admin/Receptionist Panel | Low |
+| H2 (Next) | Sprint 5–6 | Polish the unified UX (cart animation, brand system), finish notifications and RBAC end-to-end | EP-005 Notifications, EP-006 Design System | Low |
+| H3 (Later) | Post-course | Payments, delivery, multi-location support | Future-version candidates from `01-context/scope.md` | High |
 
 ---
 
 ## Product principles
 
-These principles guide design and prioritization decisions when there are trade-offs.
+1. **Domain rules live in the domain, not the UI.** Business hours, double-booking, and stock
+   invariants are enforced in the aggregate itself — a UI bug or a future integration must
+   never be able to create an impossible appointment or an inconsistent order.
 
-1. **[Principle 1]:** [description. Example: "New user first — every new feature must be understandable in 2 minutes without onboarding"]
+2. **One brand, two modes.** The shop and the clinic share the same login, the same cart/booking
+   session, and the same visual language — a customer should never feel like they left the app.
 
-2. **[Principle 2]:** [description. Example: "Opinionated about what matters, flexible on the secondary"]
-
-3. **[Principle 3]:** [description]
+3. **Staff use the product, they don't get a separate back office.** The receptionist panel
+   reuses the same Sales and Scheduling APIs a customer uses — no duplicated business logic
+   between "customer-facing" and "internal" code paths.
 
 ---
 
 ## Product Definition of Done
 
-> The product is "done" when it achieves these OKRs:
-
-**Objective:** [What we want to achieve]
+**Objective:** Deliver a working documented design (phases 00–05) and, subsequently, a locally
+runnable MVP that lets a customer buy a product and book an appointment end-to-end, and lets a
+receptionist do the same on their behalf.
 
 | Key Result | Baseline | Target | Date |
 |------------|---------|--------|------|
-| KR1: [specific metric] | [current value] | [target value] | [date] |
-| KR2: [metric] | [current] | [target] | [date] |
-| KR3: [business metric] | [current] | [target] | [date] |
+| KR1: SDD phases 00–05 filled in and reviewed | Empty scaffold | Complete for Amaranta | Sprint 1 (2026-08-28) |
+| KR2: Core user flows implemented (buy product, book appointment, staff-assisted flow) | 0 | 3/3 flows working locally via Docker Compose | End of MVP sprints |
+| KR3: Zero double-booking or stock-mismatch defects in manual QA | N/A | 0 | Before final delivery |
 
 ---
 
@@ -92,4 +92,3 @@ These principles guide design and prioritization decisions when there are trade-
 
 - Problem framing (the why) → `03-product/problem-framing.md`
 - Backlog that implements the vision → `04-requirements/user-stories.md`
-- KPIs in operations → `13-operations/README.md`

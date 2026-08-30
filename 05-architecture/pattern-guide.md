@@ -538,20 +538,17 @@ Kubernetes Pod:
 
 ## Patterns adopted in this project
 
-> **Fill in with your specific project's decisions.**
-> For each pattern: decide whether it is adopted, document the ADR that justifies the decision,
-> and link to the section in this document where you learned when to use it.
-
 | Pattern | Adopted? | Justification / ADR |
 |---------|---------|---------------------|
-| API Gateway | [Yes / No — see ADR-NNN] | [Brief reason] |
-| Database per Service | [Yes / No — see ADR-NNN] | [Brief reason] |
-| Circuit Breaker | [Yes / No — see ADR-NNN] | [Brief reason] |
-| Saga (choreographed) | [Yes / No — see ADR-NNN] | [Brief reason] |
-| Outbox Pattern | [Yes / No — see ADR-NNN] | [Brief reason] |
-| CQRS | [Yes / No — see ADR-NNN] | [Brief reason] |
-| Event Sourcing | [Yes / No — see ADR-NNN] | [Brief reason] |
-| BFF | [Yes / No — see ADR-NNN] | [Brief reason] |
+| API Gateway | Yes — Kong, see ADR-005 | Single entry point for JWT validation, rate limiting, and routing to the 6 services; keeps the client from calling services directly |
+| Service Discovery | Yes — Consul, see ADR-004 | Course requires an explicit discovery mechanism; each service registers itself and Kong resolves routes through Consul instead of hardcoded addresses |
+| Database per Service | Yes — no ADR needed, it's a non-negotiable principle in `05-architecture/overview.md` §5 | Each of the 6 bounded contexts owns its data; no shared schema |
+| Circuit Breaker | Yes — `opossum`, no dedicated ADR (implementation detail, not a hard-to-reverse decision) | Wraps the two synchronous calls (Sales→Catalog, Scheduling→Clinical) so a slow/failing service doesn't cascade |
+| Saga (choreographed) | Yes — no dedicated ADR | The checkout flow (`OrderCreated` → stock reservation → auto-cancel on `StockDepleted`) is a 2-step choreographed saga; see `02-domain/domain-events.md` |
+| Outbox Pattern | Yes — no dedicated ADR | Guarantees an aggregate write and its domain event publish atomically; every service has an `outbox` table |
+| CQRS | No | Read and write models are simple enough (a product list, an order list) that a single model is not a bottleneck at Amaranta's scale |
+| Event Sourcing | No | No business need for full history replay; current-state tables plus an audit-safe, append-only `MedicalRecord` (see `02-domain/entities-and-rules.md`) already cover the one case where history matters |
+| BFF | No | One frontend (the React app) consumes the API; multiple BFFs would only add maintenance cost |
 
 ---
 

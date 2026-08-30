@@ -20,6 +20,11 @@ ADRs document important architectural decisions. Each file = one decision.
 
 | # | Title | Status | Date |
 |---|-------|--------|------|
-| None yet | — | — | — |
+| ADR-001 | Documentation Language | Accepted | 2024-01-10 |
+| ADR-002 | Relational Database Engine and ORM | Accepted | 2026-08-25 |
+| ADR-003 | Asynchronous Message Broker | Accepted | 2026-08-25 |
+| ADR-004 | Service Discovery | Accepted | 2026-08-25 |
+| ADR-005 | API Gateway | Accepted | 2026-08-25 |
+| ADR-006 | Backend Framework | Accepted | 2026-08-25 |
 
 > Add rows here as you create ADRs in `records/`

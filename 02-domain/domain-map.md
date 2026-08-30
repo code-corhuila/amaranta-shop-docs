@@ -1,175 +1,203 @@
 # Domain Map — Bounded Contexts
 
-> **What to fill in here:** The domain map is the central DDD (Domain-Driven Design) artifact.
-> It defines the system's boundaries and how they relate to each other.
-> Build it first with the team and domain experts in an Event Storming session.
-
-## Before filling in this document: Event Storming
-
-**Event Storming** is a collaborative workshop for modeling the domain before writing code.
-It lasts 2–4 hours with the whole team (dev + PO + business expert).
-
-**Materials:** Long wall, 4-color sticky notes, markers.
-
-**Standard colors:**
-| Color | Represents | Example |
-|-------|-----------|---------|
-| 🟠 Orange | **Domain events** (something that happened, past tense) | `AppointmentScheduled`, `PaymentReceived` |
-| 🔵 Blue | **Commands** (action that triggers the event) | `ScheduleAppointment`, `ProcessPayment` |
-| 🟡 Yellow | **Actors** (who executes the command) | `Patient`, `Doctor`, `Admin` |
-| 🩷 Pink | **External systems** or integration points | `Payment Gateway`, `Email SMTP` |
-
-**Session steps:**
-1. (30 min) Post all events that occur in the business, in chronological order, on the wall
-2. (30 min) Identify which command or actor triggers each event
-3. (45 min) Group related events — each group is a candidate Bounded Context
-4. (30 min) Draw relationships between Bounded Contexts (who depends on whom)
-5. (30 min) Discuss the resulting map and agree on names
-
-**Result:** The session output directly feeds the 3 documents in `02-domain/`:
-- Identified events → `domain-events.md`
-- Entities and their rules → `entities-and-rules.md`
-- Bounded Contexts and their map → this document
-
----
-
 ---
 
 ## 1. Domain overview
 
-> One paragraph of context about the business and what problem the system solves.
-> Write it without technical terms — it must be readable by a business expert.
-
 ```
-[Describe the business domain here. E.g.: "The system manages the complete cycle of
-[X] reservations, from the customer's request through to confirmation and billing."]
+Amaranta runs a single physical location that combines a veterinary clinic ("Amaranta la
+Clínica") and a pet products store ("Amaranta Shop"). A customer can register their pets,
+buy products, and book clinic appointments — either from home, or in person, where a
+receptionist uses the same system on their behalf. The system must keep appointment slots
+inside real business hours, prevent double-booking a professional, keep product stock
+consistent between online and in-store sales, and remember each pet's medical history
+across visits.
 ```
 
 ---
 
 ## 2. Identified Bounded Contexts
 
-A **Bounded Context** is the explicit boundary within which a particular domain model
-has consistent meaning. Each bounded context has its own Ubiquitous Language.
-
-> **Signs of a good bounded context:**
-> - Has a clear responsible team
-> - Has its own database
-> - Can be deployed independently
-> - The same term in two different contexts can mean different things
-
-### Bounded Context: [Name — e.g.: User Management]
+### Bounded Context: Identity & Access
 
 | Field | Value |
 |-------|-------|
-| **Name** | [ContextName] |
-| **Responsibility** | [What this context captures in one sentence] |
-| **Owning team** | [Responsible team or person] |
-| **Microservice(s)** | [service-name, service2-name] |
-| **Database** | [PostgreSQL / MongoDB / Redis / etc.] |
-| **Ubiquitous Language** | [Key business terms in this context] |
+| **Name** | Identity & Access |
+| **Responsibility** | Owns the `User` aggregate (customers and staff), authentication, and role assignment |
+| **Owning team** | Full-stack developer (solo project) |
+| **Microservice(s)** | `identity-service` |
+| **Database** | PostgreSQL |
+| **Ubiquitous Language** | User, Role, Credential, Access Token |
 
 **Context-specific terms (Ubiquitous Language):**
 
 | Term | Meaning in THIS context | Different in another context? |
 |------|------------------------|-------------------------------|
-| [User] | [Person with an active account] | [Yes — in Billing it's "Client"] |
-| [Account] | [Set of credentials] | [No] |
+| User | Any registered person: customer or staff member | Yes — Sales calls this same person "Customer"; Scheduling calls a staff member with role VETERINARIAN or GROOMER a "Professional" |
+| Role | One of `CUSTOMER`, `RECEPTIONIST`, `VETERINARIAN`, `GROOMER`, `ADMIN` | No |
 
 ---
 
-### Bounded Context: [Name — e.g.: Order Management]
+### Bounded Context: Catalog
 
 | Field | Value |
 |-------|-------|
-| **Name** | [ContextName] |
-| **Responsibility** | |
-| **Owning team** | |
-| **Microservice(s)** | |
-| **Database** | |
-| **Ubiquitous Language** | |
+| **Name** | Catalog |
+| **Responsibility** | Owns the `Product` aggregate: what is for sale, its price in COP, and its stock level |
+| **Owning team** | Full-stack developer (solo project) |
+| **Microservice(s)** | `catalog-service` |
+| **Database** | PostgreSQL |
+| **Ubiquitous Language** | Product, Category, Stock, Price |
+
+**Context-specific terms:**
+
+| Term | Meaning in THIS context | Different in another context? |
+|------|------------------------|-------------------------------|
+| Product | An item for sale, with its own price and stock | In Sales, a product referenced inside an order is a frozen snapshot (`OrderItem`), not the live Catalog record |
+
+---
+
+### Bounded Context: Sales
+
+| Field | Value |
+|-------|-------|
+| **Name** | Sales |
+| **Responsibility** | Owns the `Order` aggregate: cart-to-checkout flow, order totals, and order status, for both online and in-store (receptionist-assisted) purchases |
+| **Owning team** | Full-stack developer (solo project) |
+| **Microservice(s)** | `sales-service` |
+| **Database** | PostgreSQL |
+| **Ubiquitous Language** | Order, OrderItem, Cart, Checkout, Channel |
+| **Subdomain type** | **Core** — the shop's conversion experience (cart, checkout, the "fly to cart" interaction) is where Amaranta Shop differentiates |
+
+---
+
+### Bounded Context: Scheduling
+
+| Field | Value |
+|-------|-------|
+| **Name** | Scheduling |
+| **Responsibility** | Owns the `Appointment` aggregate: booking, business-hours validation, and conflict-free assignment of a professional to a time slot |
+| **Owning team** | Full-stack developer (solo project) |
+| **Microservice(s)** | `scheduling-service` |
+| **Database** | PostgreSQL |
+| **Ubiquitous Language** | Appointment, Time Slot, Business Hours, Service Type |
+| **Subdomain type** | **Core** — the appointment-hours and double-booking logic is the clinic's hardest, most valuable business rule |
+
+---
+
+### Bounded Context: Clinical Records
+
+| Field | Value |
+|-------|-------|
+| **Name** | Clinical Records |
+| **Responsibility** | Owns the `Pet` aggregate and the `MedicalRecord` aggregate: pet identity and its accumulated medical history |
+| **Owning team** | Full-stack developer (solo project) |
+| **Microservice(s)** | `clinical-service` |
+| **Database** | PostgreSQL |
+| **Ubiquitous Language** | Pet, Patient, Species, Medical Record, Diagnosis, Treatment |
+| **Subdomain type** | **Core** — the medical history is Amaranta's most valuable long-term data asset |
+
+---
+
+### Bounded Context: Notifications
+
+| Field | Value |
+|-------|-------|
+| **Name** | Notifications |
+| **Responsibility** | Consumes domain events from Sales and Scheduling and sends confirmation/reminder emails. Owns no business data of its own beyond a delivery log. |
+| **Owning team** | Full-stack developer (solo project) |
+| **Microservice(s)** | `notification-service` |
+| **Database** | PostgreSQL (thin — delivery log only, for idempotency and audit) |
+| **Ubiquitous Language** | Notification, Delivery, Template |
+| **Subdomain type** | **Generic** — a commodity capability, deliberately kept simple |
 
 ---
 
 ## 3. Context Map
 
-The Context Map shows relationships between bounded contexts. Relationships define
-how contexts communicate and who holds the "power" in the integration.
-
 ```
-┌─────────────────────┐        ┌──────────────────────┐
-│  [Context A]        │        │  [Context B]         │
-│                     │──────▶│                      │
-│  Domain:            │  D→C  │  Domain:             │
-│  [responsibility]   │       │  [responsibility]    │
-└─────────────────────┘       └──────────────────────┘
-                                        │
-                               D→C      │
-                                        ▼
-                              ┌──────────────────────┐
-                              │  [Context C]         │
-                              │                      │
-                              │  [responsibility]    │
-                              └──────────────────────┘
+┌────────────────────┐   REST (validate    ┌────────────────────┐
+│   Sales            │   price & stock)     │   Catalog          │
+│   (Core)           │──────────────────────▶│   (Supporting)    │
+│                     │◀──────────────────────│                    │
+└─────────┬───────────┘  event: StockReserved,└────────────────────┘
+          │              StockDepleted
+          │ event: OrderCreated, OrderPaid, OrderCancelled
+          │
+          ▼
+┌────────────────────┐
+│  Notifications      │◀── event: AppointmentScheduled, AppointmentCancelled ──┐
+│  (Generic)          │                                                        │
+└────────────────────┘                                                        │
+                                                                                │
+┌────────────────────┐   REST (verify pet exists)   ┌────────────────────┐    │
+│   Scheduling        │──────────────────────────────▶│  Clinical Records │────┘
+│   (Core)            │◀──────────────────────────────│  (Core)           │
+└─────────┬───────────┘   event: AppointmentCompleted └────────────────────┘
+          │
+          │  JWT (published by Identity, verified at the Gateway)
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Identity & Access (Generic)                 │
+│           Open Host Service — issues JWT consumed by all         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Context relationship types
 
 | Type | Symbol | Description | Example |
 |------|--------|-------------|---------|
-| **Upstream → Downstream** | `U → D` | U provides, D consumes. D depends on U. | Auth → Orders |
-| **Shared Kernel** | `SK` | Two teams share part of the model | Shared User ID |
-| **Customer/Supplier** | `C/S` | Supplier (U) negotiates with Customer (D) | Inventory → Sales |
-| **Conformist** | `CONF` | D adopts U's model without negotiating | Legacy integration |
-| **Anti-Corruption Layer** | `ACL` | D translates U's model to protect itself | Gateway → External API |
-| **Open Host Service** | `OHS` | U publishes a published protocol | Event Bus, REST API |
-| **Published Language** | `PL` | Explicit shared language | OpenAPI spec, events |
+| **Upstream → Downstream** | `U → D` | U provides, D consumes. D depends on U. | Catalog → Sales |
+| **Open Host Service** | `OHS` | U publishes a published protocol | Identity → everyone (JWT) |
+| **Published Language** | `PL` | Explicit shared language | Domain events (`02-domain/domain-events.md`) |
 
 ### Relationships table
 
 | Context A | Relationship | Context B | Communication channel | Contract |
 |-----------|-------------|-----------|----------------------|---------|
-| [Context A] | U → D | [Context B] | REST / Event | OpenAPI / AsyncAPI |
-| [Context B] | ACL | [Context C] | Adapter | Internal interface |
+| Sales | D ← U | Catalog | REST (sync, validate price/stock at checkout) | OpenAPI |
+| Catalog | U → D | Sales | Event (`StockReserved`, `StockDepleted`) | AsyncAPI-style event schema |
+| Scheduling | D ← U | Clinical Records | REST (sync, verify the pet exists before booking) | OpenAPI |
+| Scheduling | U → D | Clinical Records | Event (`AppointmentCompleted`) | Event schema |
+| Sales, Scheduling | U → D | Notifications | Event (`OrderCreated`, `OrderPaid`, `AppointmentScheduled`, `AppointmentCancelled`) | Event schema |
+| Identity | OHS | All contexts | JWT (validated at the Kong API Gateway, re-checked per service) | JWT claims contract |
 
 ---
 
 ## 4. Core Domain, Supporting, Generic
 
-DDD classifies subdomains by their strategic value:
-
 | Type | Description | Investment | Example |
 |------|-------------|-----------|---------|
-| **Core Domain** | Where the business competitive advantage lies. What differentiates us. | MAXIMUM — build, don't buy | Matching algorithm |
-| **Supporting Subdomain** | Necessary for the core but not differentiating. Can be outsourced. | MEDIUM | Order management |
-| **Generic Subdomain** | Commodity. Off-the-shelf solution exists. | MINIMUM — buy/use OSS | Authentication, emails |
+| **Core Domain** | Where Amaranta's competitive advantage lies | MAXIMUM — build, don't buy | Sales, Scheduling, Clinical Records |
+| **Supporting Subdomain** | Necessary for the core but not differentiating | MEDIUM | Catalog |
+| **Generic Subdomain** | Commodity, off-the-shelf solution exists | MINIMUM — buy/use OSS in a real company, built simply here for the course | Identity & Access, Notifications |
 
 ### Classification of this project's bounded contexts
 
 | Bounded Context | Type | Justification |
 |----------------|------|---------------|
-| [Context A] | Core | [why it is the heart of the business] |
-| [Context B] | Supporting | [why it supports without being differentiating] |
-| [Context C] | Generic | [standard solution available] |
+| Sales | Core | The cart-to-checkout experience (and its "fly to cart" animation) is the shop's conversion driver |
+| Scheduling | Core | Enforcing real business hours and preventing double-booking is the clinic's hardest, most business-critical rule |
+| Clinical Records | Core | A pet's accumulated medical history is Amaranta's long-term data asset and trust driver |
+| Catalog | Supporting | Necessary to run the shop, but a plain product/stock list is not differentiating by itself |
+| Identity & Access | Generic | Authentication is a solved problem (a real company would use Auth0/Keycloak); built simply here to keep the course project self-contained |
+| Notifications | Generic | Email delivery is a commodity capability; kept intentionally thin |
 
 ---
 
 ## 5. Modeling decisions
 
-### How were these decisions made?
-
-> Document the Event Storming session or the process you used to arrive at the map.
-> If you changed the map, explain why.
-
-- **Event Storming session:** [date], [participants]
-- **Tool used:** [Miro / Lucidchart / physical whiteboard]
-- **Map iterations:** v1 (date), v2 (date)
+- **Event Storming session:** Solo design session, 2026-08-25, using the domain vocabulary already spoken by Amaranta's staff (appointments, orders, pets, products)
+- **Tool used:** Written directly into this document
+- **Map iterations:** v1 (2026-08-25) — initial 6-context split
 
 ### Key decisions and discarded alternatives
 
 | Decision | Discarded alternative | Reason |
 |----------|----------------------|--------|
-| [Separate Context A and B] | [Have them in one] | [Business logic is different and they evolve at different rates] |
+| Split Scheduling and Clinical Records into two contexts | One combined "Clinic" context | Scheduling is about *time slots and availability*; Clinical Records is about *medical history*. They evolve at different rates and a receptionist needs Scheduling without needing write access to medical notes |
+| Split Catalog and Sales into two contexts | One combined "Shop" context | Catalog owns product truth (price, stock); Sales owns transactional state (an order). Database-per-service would otherwise force stock and orders into the same schema, coupling two very different write patterns |
+| Keep `User` in a single Identity context instead of a per-context "Customer"/"Professional" duplicate | Duplicating user data into Sales/Scheduling | A person is one identity across the whole business; duplicating it would create sync problems for a two-person team to maintain |
 
 ---
 
@@ -177,7 +205,7 @@ DDD classifies subdomains by their strategic value:
 
 1. Before adding a new microservice, verify whether it belongs to an existing bounded context.
 2. If a context's ubiquitous language is changing, review whether the context should be split.
-3. Run an Event Storming session every time the domain changes significantly.
+3. Run a mini Event Storming session every time the domain changes significantly (e.g. adding a second Amaranta location).
 4. The context map MUST be synchronized with the C4 system-level diagram (`05-architecture/overview.md`).
 
 > **Important correlation:** The bounded contexts in this document →
