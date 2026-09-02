@@ -1,37 +1,36 @@
-# Modelos de datos por servicio - Amaranta Shop
+# Data Models per Service - Amaranta Shop
 
-Este documento define el modelo de datos SQL del MVP. La decision vigente es usar
-**PostgreSQL 16 + Prisma**, pero el diseno evita acoplar servicios por base de datos:
-cada microservicio tiene su propia base, sus propias migraciones y sus propias reglas
-de acceso.
+This document defines the MVP SQL data model. The current decision is to use
+**PostgreSQL 16 + Prisma**, while keeping services decoupled at the database level:
+each microservice has its own database, its own migrations, and its own access rules.
 
 ---
 
-## Principios de modelado
+## Modeling principles
 
 ### 1. Database per Service
 
-Cada microservicio es el unico owner de sus tablas.
+Each microservice is the only owner of its tables.
 
 ```text
-Correcto:
+Correct:
   sales-service      -> sales_db.orders
   catalog-service    -> catalog_db.products
-  sales-service      -> catalog-service API o eventos
+  sales-service      -> catalog-service API or events
 
-Incorrecto:
+Incorrect:
   sales-service      -> SELECT * FROM catalog_db.products
 ```
 
-### 2. Solo SQL para persistencia del MVP
+### 2. SQL only for MVP persistence
 
-Los datos persistentes del sistema se modelan en SQL relacional. El API Gateway no
-guarda datos de negocio; cualquier estado efimero de gateway, como rate limit o cache
-de tokens, queda fuera del modelo persistente.
+Persistent system data is modeled with relational SQL. The API Gateway does not store
+business data; any ephemeral gateway state, such as rate-limit counters or token cache,
+is outside the persistent data model.
 
-### 3. Campos estandar
+### 3. Standard fields
 
-Todas las tablas de negocio usan:
+All business tables use:
 
 ```sql
 id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,48 +39,49 @@ updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 deleted_at  TIMESTAMPTZ
 ```
 
-Regla: `deleted_at IS NULL` significa registro activo.
+Rule: `deleted_at IS NULL` means the record is active.
 
-### 4. Convenciones
+### 4. Naming conventions
 
 ```sql
--- Tablas:      snake_case plural              -> orders, order_items, users
--- Columnas:    snake_case descriptivo         -> unit_price_cop, scheduled_at
--- FKs internas:[tabla_singular]_id            -> order_id, pet_id
--- Refs externas: UUID sin FK fisica           -> customer_id, product_id
--- Indices:     idx_[tabla]_[columnas]         -> idx_orders_customer_id
--- Unicos:      uq_[tabla]_[columnas]          -> uq_users_email
--- Checks:      chk_[tabla]_[regla]            -> chk_products_price_positive
+-- Tables:       plural snake_case               -> orders, order_items, users
+-- Columns:      descriptive snake_case          -> unit_price_cop, scheduled_at
+-- Internal FKs: [singular_table]_id             -> order_id, pet_id
+-- External refs: UUID without physical FK       -> customer_id, product_id
+-- Indexes:      idx_[table]_[columns]           -> idx_orders_customer_id
+-- Unique keys:  uq_[table]_[columns]            -> uq_users_email
+-- Checks:       chk_[table]_[rule]              -> chk_products_price_positive
 ```
 
-### 5. Dinero
+### 5. Money
 
-Los valores monetarios se guardan como enteros en pesos colombianos.
+Monetary values are stored as integer Colombian pesos.
 
 ```sql
 price_cop INTEGER NOT NULL CHECK (price_cop > 0)
 ```
 
-No se usan decimales para COP en el MVP.
+The MVP does not use decimal subunits for COP.
 
-### 6. Relaciones entre servicios
+### 6. Relationships between services
 
-Las claves foraneas solo existen dentro de la misma base de datos. Si un servicio
-referencia datos de otro servicio, guarda el UUID externo y valida por API o evento.
+Foreign keys exist only inside the same service database. When a service references data
+owned by another service, it stores the external UUID and validates it through an API or
+an event.
 
-Ejemplos:
+Examples:
 
-- `orders.customer_id` referencia a un usuario de Identity & Access, pero no tiene FK.
-- `order_items.product_id` referencia a un producto de `catalog-service`, pero guarda
-  `product_name` y `unit_price_cop` como snapshot.
-- `appointments.pet_id` referencia a una mascota de `clinical-service`, validada por API.
+- `orders.customer_id` references a user owned by Identity & Access, but has no FK.
+- `order_items.product_id` references a product owned by `catalog-service`, but stores
+  `product_name` and `unit_price_cop` as an audit snapshot.
+- `appointments.pet_id` references a pet owned by `clinical-service`, validated by API.
 
 ---
 
-## Seguridad base comun
+## Common baseline SQL security
 
-Cada base debe iniciar con extensiones, roles y permisos minimos. El nombre del
-servicio se sustituye por `identity`, `catalog`, `sales`, `scheduling`, `clinical` o
+Each database must start with minimum extensions, roles, and privileges. Replace the
+service name with `identity`, `catalog`, `sales`, `scheduling`, `clinical`, or
 `notification`.
 
 ```sql
@@ -95,27 +95,27 @@ CREATE ROLE service_app LOGIN PASSWORD '<from-env>' NOINHERIT;
 GRANT USAGE ON SCHEMA public TO service_app;
 GRANT USAGE, CREATE ON SCHEMA public TO service_migrator;
 
--- Despues de crear tablas:
+-- After creating tables:
 -- GRANT SELECT, INSERT, UPDATE ON <business_tables> TO service_app;
 -- GRANT INSERT ON <audit_tables> TO service_app;
--- No dar SUPERUSER, CREATEDB ni permisos sobre bases de otros servicios.
+-- Do not grant SUPERUSER, CREATEDB, or permissions on databases owned by other services.
 ```
 
-Reglas obligatorias:
+Required rules:
 
-- La aplicacion usa prepared statements u ORM parametrizado.
-- Las migraciones corren con `service_migrator`.
-- El runtime del servicio usa `service_app`.
-- El runtime no recibe permisos `DELETE`; los borrados de negocio son `UPDATE deleted_at`.
-- Los secretos viven en variables de ambiente, no en tablas ni en Git.
-- Los tokens y contrasenas se almacenan siempre como hash.
+- The application uses prepared statements or a parameterized ORM.
+- Migrations run with `service_migrator`.
+- Runtime access uses `service_app`.
+- Runtime access does not receive `DELETE`; business deletes are `UPDATE deleted_at`.
+- Secrets live in environment variables, not in tables or Git.
+- Passwords and tokens are always stored as hashes.
 
 ---
 
-## Tablas comunes para eventos
+## Common event tables
 
-Los servicios que publican eventos usan `outbox_messages`. Los que consumen eventos
-usan `processed_events` para idempotencia.
+Services that publish events use `outbox_messages`. Services that consume events use
+`processed_events` for idempotency.
 
 ```sql
 CREATE TABLE outbox_messages (
@@ -148,30 +148,30 @@ CREATE TABLE processed_events (
 
 ---
 
-## Servicio: api-gateway
+## Service: api-gateway
 
-**Motor SQL:** No aplica para datos persistentes.
+**SQL engine:** Not applicable for persistent data.
 
-**Owner de datos:** No posee datos de negocio.
+**Data owner:** Owns no business data.
 
-**Justificacion:** El gateway enruta, valida JWT, aplica CORS y rate limiting. La fuente de
-verdad de identidad esta en Identity & Access; el gateway no debe duplicarla.
+**Justification:** The gateway routes requests, validates JWTs, applies CORS, and enforces
+rate limits. Identity truth belongs to Identity & Access; the gateway must not duplicate it.
 
 ---
 
-## Servicio: identity-service / auth-service
+## Service: identity-service / auth-service
 
-**Motor SQL:** PostgreSQL 16.
+**SQL engine:** PostgreSQL 16.
 
-**Owner de datos:** usuarios, credenciales, roles, refresh tokens y auditoria de seguridad.
+**Owned data:** users, credentials, roles, refresh tokens, and security audit records.
 
-**Nota de nombre:** el contexto se llama Identity & Access. En la arquitectura aparece como
-`identity-service`; la carpeta actual del repo es `09-microservices/services/02-auth-service/`.
+**Naming note:** The bounded context is Identity & Access. Architecture documents call it
+`identity-service`; the current repository folder is `09-microservices/services/02-auth-service/`.
 
-**Justificacion:** autenticacion y roles requieren unicidad, transacciones ACID,
-restricciones de integridad y auditoria.
+**Justification:** authentication and role assignment require uniqueness, ACID transactions,
+integrity constraints, and auditability.
 
-### Esquema SQL
+### SQL schema
 
 ```sql
 CREATE TABLE users (
@@ -259,19 +259,19 @@ CREATE INDEX idx_security_audit_log_actor_date
   ON security_audit_log (actor_id, created_at DESC);
 ```
 
-### Seed inicial
+### Initial seed
 
 ```sql
 INSERT INTO roles (name, description) VALUES
-  ('CUSTOMER', 'Cliente registrado y propietario de mascotas'),
-  ('RECEPTIONIST', 'Personal de recepcion'),
-  ('VETERINARIAN', 'Profesional veterinario'),
-  ('GROOMER', 'Profesional de grooming'),
-  ('ADMIN', 'Administrador del negocio')
+  ('CUSTOMER', 'Registered customer and pet owner'),
+  ('RECEPTIONIST', 'Front-desk staff member'),
+  ('VETERINARIAN', 'Veterinary professional'),
+  ('GROOMER', 'Grooming professional'),
+  ('ADMIN', 'Business administrator')
 ON CONFLICT (name) DO NOTHING;
 ```
 
-### Relaciones
+### Relationships
 
 ```mermaid
 erDiagram
@@ -284,16 +284,16 @@ erDiagram
 
 ---
 
-## Servicio: catalog-service
+## Service: catalog-service
 
-**Motor SQL:** PostgreSQL 16.
+**SQL engine:** PostgreSQL 16.
 
-**Owner de datos:** productos, categorias logicas, precio y stock.
+**Owned data:** products, logical categories, prices, and stock.
 
-**Justificacion:** stock y precio requieren consistencia transaccional. El catalogo tambien
-necesita busqueda por SKU, categoria y estado activo.
+**Justification:** stock and price require transactional consistency. The catalog also
+needs efficient lookup by SKU, category, and active status.
 
-### Esquema SQL
+### SQL schema
 
 ```sql
 CREATE TABLE products (
@@ -345,7 +345,7 @@ CREATE UNIQUE INDEX uq_stock_movements_event_product
   WHERE source_event_id IS NOT NULL;
 ```
 
-### Relaciones
+### Relationships
 
 ```mermaid
 erDiagram
@@ -354,17 +354,16 @@ erDiagram
 
 ---
 
-## Servicio: sales-service
+## Service: sales-service
 
-**Motor SQL:** PostgreSQL 16.
+**SQL engine:** PostgreSQL 16.
 
-**Owner de datos:** ordenes, items de orden, estado comercial y trazabilidad del checkout.
+**Owned data:** orders, order items, commercial status, and checkout traceability.
 
-**Justificacion:** una orden y sus items deben guardarse en una sola transaccion. El total
-debe ser consistente con los subtotales y los eventos de stock se procesan de forma
-idempotente.
+**Justification:** an order and its items must be stored in a single transaction. The total
+must remain consistent with item subtotals, and stock events must be processed idempotently.
 
-### Esquema SQL
+### SQL schema
 
 ```sql
 CREATE TABLE orders (
@@ -428,13 +427,13 @@ CREATE INDEX idx_order_status_history_order
   ON order_status_history (order_id, created_at DESC);
 ```
 
-### Regla de total
+### Total rule
 
-`orders.total_cop` se recalcula en la transaccion que crea o modifica items. La base
-garantiza el subtotal de cada item; el agregado `Order` garantiza que el total sea la
-suma de sus items.
+`orders.total_cop` is recalculated inside the transaction that creates or modifies items.
+The database guarantees each item subtotal; the `Order` aggregate guarantees that the order
+total equals the sum of its items.
 
-### Relaciones
+### Relationships
 
 ```mermaid
 erDiagram
@@ -444,17 +443,17 @@ erDiagram
 
 ---
 
-## Servicio: scheduling-service
+## Service: scheduling-service
 
-**Motor SQL:** PostgreSQL 16.
+**SQL engine:** PostgreSQL 16.
 
-**Owner de datos:** citas, agenda y cambios de estado.
+**Owned data:** appointments, agenda, and status changes.
 
-**Justificacion:** la agenda necesita validar horas de atencion y evitar solapamientos.
-Esta es una regla critica del dominio, por eso se valida en el caso de uso y se refuerza
-con SQL.
+**Justification:** the agenda must validate business hours and prevent overlapping
+appointments. This is a critical domain rule, so it is validated in the use case and
+reinforced with SQL.
 
-### Esquema SQL
+### SQL schema
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS btree_gist;
@@ -527,14 +526,13 @@ CREATE INDEX idx_appointment_status_history_appointment
   ON appointment_status_history (appointment_id, created_at DESC);
 ```
 
-### Nota de portabilidad
+### Portability note
 
-La restriccion `EXCLUDE USING gist` es especifica de PostgreSQL y esta justificada por
-la regla critica de no doble reserva. Si el servicio migra a MySQL o SQL Server, esta
-validacion debe mantenerse con una consulta transaccional equivalente y bloqueo
-optimista o pesimista.
+The `EXCLUDE USING gist` constraint is PostgreSQL-specific and is justified by the critical
+no-double-booking rule. If this service moves to MySQL or SQL Server, this validation must
+be preserved with an equivalent transactional query and optimistic or pessimistic locking.
 
-### Relaciones
+### Relationships
 
 ```mermaid
 erDiagram
@@ -543,17 +541,16 @@ erDiagram
 
 ---
 
-## Servicio: clinical-service
+## Service: clinical-service
 
-**Motor SQL:** PostgreSQL 16.
+**SQL engine:** PostgreSQL 16.
 
-**Owner de datos:** mascotas e historias clinicas.
+**Owned data:** pets and medical records.
 
-**Justificacion:** la historia clinica es un activo critico. Se guarda como registro
-auditado y practicamente append-only: una correccion se agrega como nuevo registro que
-referencia al anterior.
+**Justification:** the medical history is a critical data asset. It is stored as an audited,
+mostly append-only record: a correction is added as a new record referencing the previous one.
 
-### Esquema SQL
+### SQL schema
 
 ```sql
 CREATE TABLE pets (
@@ -608,13 +605,13 @@ CREATE INDEX idx_medical_records_veterinarian_date
   WHERE deleted_at IS NULL;
 ```
 
-### Regla de inmutabilidad
+### Immutability rule
 
-El rol SQL de aplicacion debe tener `INSERT` y `SELECT` sobre `medical_records`, pero no
-`UPDATE` ni `DELETE` sobre diagnostico, tratamiento o notas. Si se necesita corregir un
-registro, se inserta otro con `amended_record_id`.
+The SQL runtime role should have `INSERT` and `SELECT` on `medical_records`, but not
+`UPDATE` or `DELETE` on diagnosis, treatment, or notes. To correct a record, insert a new
+one with `amended_record_id`.
 
-### Relaciones
+### Relationships
 
 ```mermaid
 erDiagram
@@ -624,16 +621,16 @@ erDiagram
 
 ---
 
-## Servicio: notification-service
+## Service: notification-service
 
-**Motor SQL:** PostgreSQL 16.
+**SQL engine:** PostgreSQL 16.
 
-**Owner de datos:** plantillas de notificacion y bitacora de entregas.
+**Owned data:** notification templates and delivery log.
 
-**Justificacion:** el servicio necesita idempotencia, auditoria y reintentos simples. No es
-fuente de verdad de ordenes, citas ni usuarios.
+**Justification:** the service needs idempotency, auditability, and simple retries. It is not
+the source of truth for orders, appointments, or users.
 
-### Esquema SQL
+### SQL schema
 
 ```sql
 CREATE TABLE notification_templates (
@@ -677,7 +674,7 @@ CREATE INDEX idx_notification_deliveries_recipient
   ON notification_deliveries (recipient_email, created_at DESC);
 ```
 
-### Relaciones
+### Relationships
 
 ```mermaid
 erDiagram
@@ -686,24 +683,24 @@ erDiagram
 
 ---
 
-## Matriz de propiedad de datos
+## Data ownership matrix
 
-| Dato | Owner | Otros servicios lo usan como... | Acceso permitido |
-|------|-------|----------------------------------|------------------|
-| Usuario, rol, credencial | `identity-service` / `auth-service` | `customer_id`, `created_by`, `professional_id`, `veterinarian_id` | JWT, API interna o claim de seguridad |
-| Producto, precio actual, stock | `catalog-service` | `product_id` y snapshot en `order_items` | API de catalogo y eventos de stock |
-| Orden e items | `sales-service` | `source_order_id`, eventos `OrderCreated`, `OrderPaid`, `OrderCancelled` | API de ventas y eventos |
-| Cita | `scheduling-service` | `appointment_id` en historia clinica | API de agenda y eventos |
-| Mascota e historia clinica | `clinical-service` | `pet_id` en citas | API clinica |
-| Entrega de notificacion | `notification-service` | No se comparte como dato de negocio | Solo auditoria del servicio |
+| Data | Owner | Used by other services as... | Allowed access |
+|------|-------|------------------------------|----------------|
+| User, role, credential | `identity-service` / `auth-service` | `customer_id`, `created_by`, `professional_id`, `veterinarian_id` | JWT, internal API, or security claim |
+| Product, current price, stock | `catalog-service` | `product_id` and snapshot in `order_items` | Catalog API and stock events |
+| Order and order items | `sales-service` | `source_order_id`, `OrderCreated`, `OrderPaid`, `OrderCancelled` events | Sales API and events |
+| Appointment | `scheduling-service` | `appointment_id` in medical records | Scheduling API and events |
+| Pet and medical history | `clinical-service` | `pet_id` in appointments | Clinical API |
+| Notification delivery | `notification-service` | Not shared as business data | Service audit only |
 
 ---
 
-## Migracion del esquema
+## Schema migration
 
-**Herramienta recomendada:** Prisma Migrate con migraciones SQL revisables.
+**Recommended tool:** Prisma Migrate with reviewable SQL migrations.
 
-**Convencion de archivos:**
+**File naming convention:**
 
 ```text
 V001__create_extensions.sql
@@ -713,17 +710,17 @@ V004__create_indexes.sql
 V005__grant_runtime_permissions.sql
 ```
 
-### Reglas
+### Rules
 
-- Las migraciones son forward-only.
-- Una migracion debe representar un cambio logico.
-- No se edita una migracion que ya corrio en otro ambiente.
-- Los cambios destructivos se hacen en dos fases:
-  1. agregar nueva columna/tabla y adaptar codigo;
-  2. eliminar la columna/tabla anterior cuando ya no se use.
-- Los seeds de catalogos de sistema, como roles, van en migraciones separadas.
+- Migrations are forward-only.
+- One migration represents one logical change.
+- Never edit a migration that already ran in another environment.
+- Destructive changes are handled in two phases:
+  1. add the new column/table and update the code;
+  2. remove the old column/table once it is no longer used.
+- System catalog seeds, such as roles, go in separate migrations.
 
-### Cambios compatibles
+### Compatible changes
 
 ```sql
 ALTER TABLE products ADD COLUMN brand VARCHAR(80);
@@ -731,23 +728,23 @@ ALTER TABLE orders ADD COLUMN notes TEXT;
 CREATE INDEX idx_products_sku ON products (sku);
 ```
 
-### Cambios no compatibles
+### Incompatible changes
 
 ```sql
--- Evitar en una sola entrega si produccion todavia lee la columna anterior.
+-- Avoid this in a single release if production code still reads the old column.
 ALTER TABLE orders DROP COLUMN customer_id;
 ALTER TABLE products ALTER COLUMN price_cop TYPE NUMERIC(12,2);
 ```
 
 ---
 
-## Correlaciones
+## Correlations
 
-| Esta seccion se alimenta de... | Y alimenta... |
+| This section is fed by... | And feeds into... |
 |---------------------------|-------------------|
-| `02-domain/entities-and-rules.md` -> entidades de dominio | Tablas de base de datos |
-| `02-domain/domain-events.md` -> eventos del sistema | `outbox_messages` y `processed_events` |
-| `05-architecture/` -> decisiones del motor y patrones | Eleccion del motor en `models.md` |
-| `models.md` | `07-api/contracts/` -> que datos expone cada servicio |
-| `models.md` | `08-uml/` -> diagramas ER |
+| `02-domain/entities-and-rules.md` -> domain entities | Database tables |
+| `02-domain/domain-events.md` -> system events | `outbox_messages` and `processed_events` |
+| `05-architecture/` -> engine and pattern decisions | Engine choice in `models.md` |
+| `models.md` | `07-api/contracts/` -> data exposed by each service |
+| `models.md` | `08-uml/` -> ER diagrams |
 | `models.md` | `09-microservices/[service]/data-model.md` |
