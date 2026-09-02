@@ -1,98 +1,92 @@
-# 06 — Data
+# 06 - Data
 
-> **What is this?** How the system stores, structures, and migrates data.
-> In microservices, data management is one of the most complex challenges.
+Esta seccion define como Amaranta Shop almacena, protege, migra y relaciona sus datos.
+El foco del MVP es **SQL relacional por microservicio**, usando PostgreSQL como motor
+base segun `05-architecture/decisions/records/ADR-002-database-engine-and-orm.md`.
 
-## Fundamental principle in microservices
-
-> **Each microservice owns its own data.**
-
-No service should access another service's database directly. If it needs data from another
-service, it requests it via API or receives it via event. This principle guarantees independence.
+La regla principal es simple: **cada microservicio es propietario de su propia base de
+datos**. Ningun servicio hace `JOIN` ni consulta directa contra tablas de otro servicio.
+Cuando necesita informacion externa, la obtiene por API o por eventos.
 
 ---
 
-## What is here and how to fill it in
+## Archivos de esta seccion
 
-### `models.md` ⭐
-Data models for each microservice.
-**Fill in:** ER (entity-relationship) diagram or description of collections/tables for each service.
+| Archivo | Proposito | Estado |
+|---------|-----------|--------|
+| `models.md` | Esquema SQL por microservicio, tablas, relaciones, indices, seguridad basica y ownership | Completo para el MVP |
+| `data-dictionary.md` | Diccionario detallado de campos criticos | Pendiente |
+| `modeling-conventions.md` | Convenciones de nombres, tipos, auditoria y borrado logico | Pendiente |
+| `normalization-assessment.md` | Justificacion de normalizacion y denormalizaciones | Pendiente |
+| `migration-strategy.md` | Politica detallada de migraciones | Pendiente |
 
-**Format per service:**
-```markdown
-## Service: [name]
-**DB Engine:** [PostgreSQL / MongoDB / Redis / etc.]
-**Justification:** [why this engine for this service]
-
-### Table/Collection: [name]
-| Field | Type | Nullable | Description | Constraints |
-|-------|------|----------|-------------|-------------|
-| id | UUID | No | Unique identifier | PK |
-| [field] | [type] | [Yes/No] | [description] | [FK/Unique/etc.] |
-
-### Indexes
-| Name | Fields | Type | Justification |
-|------|--------|------|---------------|
-```
-
-### `data-dictionary.md` ⭐
-Exact meaning of each important field in the system.
-**Fill in:** especially for fields that may be ambiguous or have business rules.
-
-**Format:**
-```markdown
-| Field | Service | Table | Type | Detailed description | Possible values |
-|-------|---------|-------|------|---------------------|-----------------|
-| status | scheduling | schedule | ENUM | Current status of the schedule | ACTIVE, CANCELLED, PENDING |
-```
-
-### `modeling-conventions.md`
-Naming and style conventions for the project's databases.
-**Fill in:** naming (snake_case or camelCase), use of UUIDs vs sequential, standard timestamps,
-soft delete vs hard delete, auditing (created_at, updated_at, created_by).
-
-### `normalization-assessment.md`
-Analysis of the normalization level and justification for denormalizations.
-**Fill in:** for each intentional denormalization, explain why (performance, simplification).
-
-### `migration-strategy.md`
-Strategy for migrating data between schema versions.
-**Fill in:** migration tool (Flyway, Liquibase, Alembic), rollback policy,
-how to handle migrations with data in production.
+Mientras los archivos pendientes no existan, `models.md` es la fuente principal para el
+modelo de datos.
 
 ---
 
-## Correlations with other sections
+## Respuestas que debe cubrir esta seccion
 
-| This section is fed by... | And feeds into... |
-|---------------------------|-------------------|
-| `02-domain/entities-and-rules.md` → domain entities | DB tables |
-| `05-architecture/` → DB engine decisions | Engine choice in `models.md` |
-| `models.md` | `07-api/contracts/` → what data each service exposes |
-| `models.md` | `08-uml/` → ER diagrams |
-| `models.md` | `09-microservices/[service]/data-model.md` |
-
----
-
-## Important data decisions in microservices
-
-### SQL or NoSQL?
-There is no single answer. It depends on the service:
-- **SQL** (PostgreSQL, MySQL): relational data, ACID transactions, fixed schema
-- **Document** (MongoDB): hierarchical data, flexible schema, high variability
-- **Key-value** (Redis): cache, sessions, high-speed temporary data
-- **Time series** (InfluxDB, TimescaleDB): metrics, event logs
-
-### How to handle consistency between services?
-Without a shared database, consistency is **eventual**:
-- Saga Pattern: chain of compensating transactions
-- Outbox Pattern: guarantee that the event is published along with the transaction
+| Pregunta | Respuesta para Amaranta |
+|----------|-------------------------|
+| Que datos maneja cada microservicio? | Identity & Access (`identity-service` en arquitectura, `auth-service` en la carpeta actual) maneja usuarios, credenciales, roles y tokens; `catalog-service` productos y stock; `sales-service` ordenes e items; `scheduling-service` citas; `clinical-service` mascotas e historias clinicas; `notification-service` bitacora de envios. |
+| Por que se eligio ese motor de base de datos? | PostgreSQL porque el dominio es relacional, requiere transacciones ACID, restricciones, indices, migraciones versionadas y buen soporte para Prisma. |
+| Como se actualiza el esquema sin que el sistema falle? | Con migraciones SQL versionadas, forward-only, cambios compatibles primero, y cambios destructivos en dos fases. |
+| Quien es el propietario de cada dato? | Cada dato tiene un unico owner. Los demas servicios guardan solo referencias UUID o snapshots necesarios para auditoria. |
 
 ---
 
-## Questions this section must answer
+## Mapa de datos por microservicio
 
-- What data does each microservice handle?
-- Why was that database engine chosen for each service?
-- How is the schema updated without breaking the system?
-- Who is the "owner" of each piece of data in the system?
+| Microservicio | Base SQL | Datos propios | Referencias externas permitidas |
+|---------------|----------|---------------|---------------------------------|
+| `api-gateway` | Sin BD persistente | No posee datos de negocio | Consulta JWT y aplica politicas de entrada |
+| `identity-service` / `auth-service` | PostgreSQL | Usuarios, credenciales, roles, tokens, auditoria de seguridad | Ninguna |
+| `catalog-service` | PostgreSQL | Productos, precios, stock, movimientos de inventario | `created_by`, `source_order_id` como UUID externos |
+| `sales-service` | PostgreSQL | Ordenes, items, estados de orden | `customer_id`, `created_by`, `product_id` como UUID externos |
+| `scheduling-service` | PostgreSQL | Citas, agenda, historial de estado | `pet_id`, `owner_id`, `professional_id` como UUID externos |
+| `clinical-service` | PostgreSQL | Mascotas, historias clinicas | `owner_id`, `appointment_id`, `veterinarian_id` como UUID externos |
+| `notification-service` | PostgreSQL | Plantillas y log de entregas | `source_event_id`, `aggregate_id`, destinatarios |
+
+---
+
+## Correlaciones con otras secciones
+
+| Esta seccion se alimenta de... | Y alimenta... |
+|--------------------------------|---------------|
+| `02-domain/entities-and-rules.md` - entidades, invariantes y value objects | Tablas SQL, columnas obligatorias, restricciones `CHECK` y relaciones internas |
+| `02-domain/domain-events.md` - eventos y consumidores | Tablas `outbox_messages` y `processed_events` |
+| `05-architecture/` - decisiones de motor, database per service, outbox y saga | Eleccion del motor y reglas de consistencia en `models.md` |
+| `models.md` | `07-api/contracts/` - datos que expone cada servicio por API |
+| `models.md` | `08-uml/` - diagramas ER por servicio |
+| `models.md` | `09-microservices/[service]/data-model.md` - detalle operacional por servicio |
+
+---
+
+## Seguridad basica desde SQL
+
+El modelo usa seguridad defensiva desde la base de datos:
+
+- roles separados para migraciones y aplicacion: `*_migrator` y `*_app`;
+- contrasenas y refresh tokens guardados solo como hash;
+- restricciones `NOT NULL`, `UNIQUE`, `CHECK` y FK internas;
+- borrado logico con `deleted_at`;
+- tablas de auditoria e idempotencia;
+- ausencia de permisos entre bases de datos de servicios distintos;
+- consultas publicas por vistas o endpoints, no por acceso directo a tablas sensibles.
+
+La autorizacion de negocio se valida en cada servicio con RBAC, segun
+`00-governance/security-policy.md`.
+
+---
+
+## Como anexar informacion nueva
+
+1. Identificar el owner del dato en la matriz anterior.
+2. Agregar la tabla o columna en `models.md` dentro del microservicio propietario.
+3. Si otro servicio necesita leer ese dato, actualizar el contrato en `07-api/contracts/`
+   o publicar/consumir un evento en `02-domain/domain-events.md`.
+4. Crear una migracion SQL nueva con nombre `V###__descripcion.sql`.
+5. No modificar migraciones ya ejecutadas.
+6. Actualizar el diagrama ER en `08-uml/` y el `data-model.md` del servicio en
+   `09-microservices/services/`.
