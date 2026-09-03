@@ -4,105 +4,136 @@
 > exist. It is the reference when frontend and backend discuss what endpoints exist
 > or how to reach a feature.
 
+> **Stage note:** Amaranta ships today as a **monolith MVP** (one NestJS backend, one Next.js
+> frontend) implementing 3 of the 15+ HUs in the full backlog: HU-IAM-001 (register), HU-CAT-001
+> (browse catalog), HU-SALES-001 (cart + checkout). There is no API Gateway or service discovery
+> yet — the single frontend calls the single backend directly. Those pieces belong to the
+> **target** microservices architecture (`09-microservices/`, ADR-004/ADR-005) and are added when
+> a bounded context is actually extracted — see `amaranta-shop-mvp/docs/path-to-microservices.md`
+> in the implementation repo for the extraction plan.
+
 ---
 
 ## Frontend route structure
 
-> **Instruction:** Fill this tree with your application's real routes.
-> Use the `[method] /route` format for API endpoints where applicable.
+```
+/                           → Home / product catalog (public)
+├── /login                  → Login form
+├── /register                → Self-registration form (HU-IAM-001)
+├── /cart                    → Cart + checkout wizard (HU-SALES-001)
+│                              4 steps: Cart → Fulfillment → Details → Review
+└── /orders                  → "My orders" — order history (authenticated)
+```
 
-```
-/                           → Home / landing page
-├── /auth
-│   ├── /login              → Authentication form
-│   ├── /register           → New user registration
-│   └── /forgot-password    → Password recovery
-│
-├── /dashboard              → Main panel (authenticated)
-│   ├── /overview           → Summary and key metrics
-│   └── /notifications      → Notification center
-│
-├── /[resource-a]           → [Resource A] list
-│   ├── /new                → Creation form
-│   └── /:id
-│       ├── /               → Resource detail
-│       └── /edit           → Edit form
-│
-├── /[resource-b]           → [Resource B] list
-│   └── /:id                → Detail
-│
-├── /admin                  → Administration panel (role: ADMIN)
-│   ├── /users              → User management
-│   └── /settings           → System configuration
-│
-└── /profile                → Authenticated user's profile
-```
+There is no `/admin`, `/dashboard`, or role-gated area in the MVP: the only role that exists in
+practice today is `CUSTOMER` (self-registration always assigns it — `INV-USER-002`). Roles
+`RECEPTIONIST`, `VETERINARIAN`, `GROOMER`, `ADMIN` are modeled in the domain (`identity.users.role`)
+but have no dedicated screens yet — they belong to HUs outside this MVP's 3-story scope
+(HU-IAM-003, HU-SALES-003, HU-SCHED-*, HU-CLIN-*).
 
 ---
 
 ## Screen map
 
-| Screen | Route | Component | Minimum role | Backend service |
-|--------|-------|-----------|--------------|----------------|
-| Home | `/` | `HomePage` | Public | — |
-| Login | `/auth/login` | `LoginPage` | Public | auth-service |
-| Register | `/auth/register` | `RegisterPage` | Public | auth-service |
-| Dashboard | `/dashboard` | `DashboardPage` | USER | [service] |
-| [Resource A] list | `/[resource-a]` | `[ResourceA]ListPage` | USER | [service] |
-| [Resource A] detail | `/[resource-a]/:id` | `[ResourceA]DetailPage` | USER | [service] |
-| Create [Resource A] | `/[resource-a]/new` | `[ResourceA]FormPage` | USER | [service] |
-| Admin panel | `/admin` | `AdminDashboard` | ADMIN | auth-service |
+| Screen | Route | Public / Authenticated | Backend endpoint(s) |
+|--------|-------|------------------------|----------------------|
+| Catalog (home) | `/` | Public | `GET /products` |
+| Login | `/login` | Public | `POST /auth/login` |
+| Register | `/register` | Public | `POST /auth/register` |
+| Cart & checkout | `/cart` | Public to browse; login required to confirm | `POST /orders` |
+| My orders | `/orders` | Authenticated (redirects to `/login` if not) | `GET /orders` |
 
 ---
 
 ## Main user flows
 
-### Flow 1 — [Name of main flow]
+### Flow 1 — Browse and buy (HU-CAT-001 → HU-SALES-001)
 
 ```
-[Start screen]
+Catalog (/)
     │
-    ▼ [User action]
-[Screen 2]
+    ▼ click "Agregar" on a product card
+[fly-to-cart animation, cart badge updates on arrival]
     │
-    ├── [Successful case] ──► [OK result screen]
+    ▼ click "Carrito"
+Cart — step 1: Cart (/cart)
     │
-    └── [Error case] ────► [Error screen / feedback]
+    ├── not logged in ──► redirected to /login, then back to /cart
+    │
+    ▼ click "Continuar"
+Cart — step 2: Fulfillment
+    │  choose "A domicilio" or "Recoger en tienda"
+    ▼
+Cart — step 3: Details
+    │  name, phone, (address if DELIVERY), payment method
+    │
+    ├── missing required field ──► inline validation error, stays on step 3
+    │
+    ▼ click "Continuar"
+Cart — step 4: Review
+    │
+    ▼ click "Confirmar pedido"
+    │
+    ├── insufficient stock (checked against Catalog) ──► error shown, stays on step 4
+    │
+    ▼ success
+Order confirmation screen
+    │  shows order id, total, "Enviar pedido por WhatsApp" (pre-filled wa.me link)
+    ▼
+/orders (optional) or back to /
 ```
 
-**Related HUs:** HU-[service]-001, HU-[service]-002
+**Related HUs:** HU-CAT-001, HU-SALES-001
 
-### Flow 2 — Authentication
+### Flow 2 — Registration and login (HU-IAM-001)
 
 ```
-Landing (/)
+Catalog (/)
     │
-    ▼ Click "Sign in"
-Login (/auth/login)
+    ▼ click "Crear cuenta"
+Register (/register)
     │
-    ├── Valid credentials ──► Dashboard (/dashboard)
+    ├── email already registered ──► inline error "EMAIL_ALREADY_REGISTERED"
     │
-    └── Invalid credentials ► Login with error message (max. 5 attempts)
+    ▼ valid submission
+JWT issued, stored client-side, redirected to /
 ```
 
-**Related HUs:** HU-AUTH-001, HU-AUTH-002
+```
+Catalog (/)
+    │
+    ▼ click "Ingresar"
+Login (/login)
+    │
+    ├── wrong credentials ──► inline error "INVALID_CREDENTIALS"
+    │
+    ▼ valid credentials
+JWT issued, redirected to /
+```
+
+**Related HUs:** HU-IAM-001 (register). Login itself is supporting infrastructure for
+HU-SALES-001 (checkout requires a JWT), not a separately counted HU in this MVP's 3-story scope.
 
 ---
 
 ## Navigation rules
 
 | Rule | Description |
-|------|-------------|
-| Authentication | Routes under `/dashboard`, `/[resource]`, `/admin` redirect to `/auth/login` if no session |
-| Authorization | Routes under `/admin` redirect to `/dashboard` if the user does not have ADMIN role |
-| 404 | Undefined routes show the 404 screen with a link to dashboard |
-| Confirmation | Destructive actions (delete, cancel) show a confirmation dialog before executing |
+|------|--------------|
+| Authentication | `/orders` redirects to `/login` if there is no session; `/cart`'s checkout step also redirects to `/login` when the user tries to continue past the cart step without one |
+| Session storage | The JWT is kept client-side (browser storage); there is no server session — every request re-sends `Authorization: Bearer <token>` |
+| Cart persistence | The cart is client-side (survives a page reload) and is independent of login — you can add products before authenticating |
+| Out of stock | A product with `stockQuantity = 0` shows "Agotado" and its "Agregar" button is disabled — cannot enter the cart at all |
+| Checkout validation | Each wizard step blocks "Continuar" until its required fields are valid; the delivery address is only required when "A domicilio" was chosen (`INV-ORDER-007`, enforced again in the backend domain, not only in this form) |
+| 404 | Undefined routes fall back to Next.js's default not-found page |
 
 ---
 
 ## Correlations
 
 - Design system (visual components) → `12-ux-ui/design-system.md`
-- Wireframes → `12-ux-ui/wireframes/` (if applicable)
-- Frontend API contracts → `07-api/contracts/openapi/`
-- Roles and permissions → `00-governance/security-policy.md`
+- Wireframes → `12-ux-ui/wireframes.md`
+- User stories these flows implement → `04-requirements/user-stories.md`
+- Domain invariants referenced above → `02-domain/entities-and-rules.md`
+- Path to the target microservices navigation (API Gateway in front of this same frontend) →
+  `amaranta-shop-mvp/docs/path-to-microservices.md`

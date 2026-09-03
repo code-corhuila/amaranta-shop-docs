@@ -12,6 +12,31 @@ Changing the code in production with real users can cost days and reputation.
 
 ---
 
+## Implementation
+
+The 3 files in this folder (`navigation-map.md`, `design-system.md`, `wireframes.md`) are
+already filled in — they document the **monolith MVP** that actually implements this design,
+built in a separate repo:
+
+**Repo:** https://github.com/BrandowC/amaranta-shop-mvp
+
+**Run it locally (fastest path):**
+
+```bash
+git clone https://github.com/BrandowC/amaranta-shop-mvp.git
+cd amaranta-shop-mvp
+cp .env.example .env
+docker compose up --build
+```
+
+- Web: http://localhost:3000
+- API + docs interactivos (Swagger): http://localhost:8080/api-docs
+
+Requires Docker Desktop running. Full instructions (including running the API/web outside
+Docker with `npm run dev` for faster iteration) are in that repo's own `README.md`.
+
+---
+
 ## What is here and how to fill it in
 
 ### `navigation-map.md` ⭐ (Start here)
