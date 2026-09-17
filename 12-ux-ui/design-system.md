@@ -14,39 +14,43 @@
 
 ### Colors
 
-Amaranta's brand color is a vivid amaranth pink (the flower the shop is named after), paired
-with a sage green for confirmations/success and a warm cream background instead of pure white.
+Amaranta's brand palette is "Fiery Ocean": a fiery red (`ember`) as the primary brand color,
+paired with a deep-water blue (`ocean`) for secondary/success accents and a warm cream
+background instead of pure white. (Superseded the earlier amaranth-pink / sage-green palette.)
 
 ```css
-/* Primary — amaranth (brand color) */
---color-amaranth-50:  #fdf2f6;
---color-amaranth-100: #fce7ef;
---color-amaranth-200: #f9c9dc;
---color-amaranth-300: #f39dbe;
---color-amaranth-400: #ea6a99;
---color-amaranth-500: #d6336c;  /* Default — primary buttons, links, brand accents */
---color-amaranth-600: #b8215a;  /* Hover state for primary */
---color-amaranth-700: #96184a;  /* Headings, high-emphasis text on light backgrounds */
---color-amaranth-800: #7a173e;
---color-amaranth-900: #521326;
+/* Primary — ember (brand color, "fire") */
+--color-ember-50:  #fdf1ee;
+--color-ember-100: #fbe0d8;
+--color-ember-200: #f3b8ac;
+--color-ember-300: #e8887a;
+--color-ember-400: #d85a4a;
+--color-ember-500: #c41e2e;  /* Default — primary buttons, links, brand accents */
+--color-ember-600: #a01522;  /* Hover state for primary */
+--color-ember-700: #7a0e17;  /* Headings, high-emphasis text on light backgrounds */
+--color-ember-800: #5c0a10;
+--color-ember-900: #3d0709;
 
-/* Secondary — sage (success, confirmations, secondary accents) */
---color-sage-50:  #f2f8f2;
---color-sage-100: #e0efe1;
---color-sage-400: #6fb384;
---color-sage-500: #4c9a6a;  /* "Agregar" button, success alerts */
---color-sage-600: #3a7d54;  /* Hover state */
+/* Secondary — ocean (success, confirmations, secondary accents, "water") */
+--color-ocean-50:  #eef5fa;
+--color-ocean-100: #dcebf5;
+--color-ocean-200: #b7d7ea;
+--color-ocean-300: #93c0da;
+--color-ocean-400: #79a9c9;
+--color-ocean-500: #5c93b8;  /* "Agregar" button, success alerts */
+--color-ocean-600: #457897;  /* Hover state */
+--color-ocean-700: #345d75;
 
 /* Backgrounds */
---color-cream-50:  #fffaf3;  /* Page background (body) */
---color-cream-100: #fef3e7;
+--color-cream-50:  #fbeeda;  /* Page background (body) */
+--color-cream-100: #f5e2c4;
 
 /* Text */
---color-ink-900: #241521;  /* Primary text color (near-black, warm undertone — never pure #000) */
+--color-ink-900: #0e2a3d;  /* Primary text color (dark navy, warm undertone — never pure #000) */
 
 /* Semantic (inherited from Tailwind defaults, used as-is) */
 --color-error:   #ef4444;  /* red-500 — form/API error text and borders */
---color-success: var(--color-sage-500);
+--color-success: var(--color-ocean-500);
 ```
 
 ### Typography
@@ -80,7 +84,7 @@ no custom spacing tokens were needed.
 --radius-xl2: 20px;     /* rounded-xl2 (custom) — cards, panels, hero banner */
 --radius-full: 9999px;  /* rounded-full — buttons, badges, avatar-style bubbles */
 
---shadow-card: 0 8px 24px -8px rgba(82, 19, 38, 0.18);  /* custom, tinted with the brand color
+--shadow-card: 0 8px 24px -8px rgba(61, 7, 9, 0.2);  /* custom, tinted with the brand color
                                                             instead of pure black — used on every
                                                             card, button, and floating panel */
 ```
@@ -93,9 +97,9 @@ no custom spacing tokens were needed.
 
 | Variant | Class | Use | Disabled state |
 |---------|-------|-----|-----------------|
-| Primary | `.btn-primary` — `bg-amaranth-500`, white text, `rounded-full`, `shadow-card` | Main action per view ("Confirmar pedido", "Crear cuenta", "Continuar") | `opacity-50`, `cursor-not-allowed` |
-| Secondary | `.btn-secondary` — `border-amaranth-300`, amaranth text, transparent fill | Secondary actions ("Atrás", "Ver mis pedidos") | Same |
-| Add-to-cart | `bg-sage-500` pill, white text | The one action that is deliberately *not* amaranth — visually separates "browse" (pink) from "commit to buying" (green) | `bg-ink-900/20`, `cursor-not-allowed` (used on out-of-stock products) |
+| Primary | `.btn-primary` — `bg-ember-500`, white text, `rounded-full`, `shadow-card` | Main action per view ("Confirmar pedido", "Crear cuenta", "Continuar") | `opacity-50`, `cursor-not-allowed` |
+| Secondary | `.btn-secondary` — `border-ember-300`, ember text, transparent fill | Secondary actions ("Atrás", "Ver mis pedidos") | Same |
+| Add-to-cart | `bg-ocean-500` pill, white text | The one action that is deliberately *not* ember — visually separates "browse" (red) from "commit to buying" (blue) | `bg-ink-900/20`, `cursor-not-allowed` (used on out-of-stock products) |
 
 **Usage rules (as implemented):**
 - Only one `.btn-primary` per view.
@@ -106,9 +110,9 @@ no custom spacing tokens were needed.
 
 | Component | Class | When used |
 |-----------|-------|-----------|
-| Text input | `.input` — white fill, `rounded-lg`, `border-ink-900/15`, focus ring in `amaranth-200` | Name, email, phone, address, quantity |
-| Radio group | Native `<input type="radio">` styled with `accent-amaranth-500`, wrapped in a bordered `<label>` that highlights (`border-amaranth-400 bg-amaranth-50`) when checked | Payment method (Efectivo / Tarjeta / Transferencia) — 3 options, matches the design-system rule "Radio for 2–5 options" |
-| Selectable card | Large bordered button, `hover:border-amaranth-400` | Fulfillment method (A domicilio / Recoger en tienda) — used instead of radio because there are only 2, mutually exclusive, high-consequence options |
+| Text input | `.input` — white fill, `rounded-lg`, `border-ink-900/15`, focus ring in `ember-200` | Name, email, phone, address, quantity |
+| Radio group | Native `<input type="radio">` styled with `accent-ember-500`, wrapped in a bordered `<label>` that highlights (`border-ember-400 bg-ember-50`) when checked | Payment method (Efectivo / Tarjeta / Transferencia) — 3 options, matches the design-system rule "Radio for 2–5 options" |
+| Selectable card | Large bordered button, `hover:border-ember-400` | Fulfillment method (A domicilio / Recoger en tienda) — used instead of radio because there are only 2, mutually exclusive, high-consequence options |
 
 **Error messages in forms:**
 - Shown as a full-width alert below the field group (see Feedback → Inline alert), in red,
@@ -119,11 +123,12 @@ no custom spacing tokens were needed.
 
 | Component | Class / implementation | When | Duration |
 |-----------|------------------------|------|----------|
-| Inline alert | `<Alert kind="error"|"success">` — red or sage-tinted box | Form/API errors, informational notices ("Inicia sesión para finalizar tu compra") | Until the condition clears |
-| Skeleton | Pulsing `bg-amaranth-100/60` blocks matching the card grid | Loading the product catalog | Until the API responds |
-| Fly-to-cart bubble | A small amaranth circle (🐾) that arcs from the clicked product to the cart icon (Framer Motion) | Every "Agregar" click | ~650ms — the cart badge count only increments when the bubble arrives, not before |
+| Inline alert | `<Alert kind="error"|"success">` — red or ocean-tinted box | Form/API errors, informational notices ("Inicia sesión para finalizar tu compra") | Until the condition clears |
+| Skeleton | Pulsing `bg-ember-100/60` blocks matching the card grid | Loading the product catalog | Until the API responds |
+| Fly-to-cart bubble | A small ember circle (🐾) that arcs from the clicked product to the cart icon (Framer Motion) | Every "Agregar" click | ~650ms — the cart badge count only increments when the bubble arrives, not before |
 | Cart badge bump | Cart icon scales up (1 → 1.4 → 1) | Fires exactly when the fly-to-cart bubble lands | ~350ms |
-| Stepper | Numbered circles + connecting bar, filled amaranth up to the current step | Checkout wizard (`/cart`) — 4 steps | Persists for the whole flow |
+| Stepper | Numbered circles + connecting bar, filled ember up to the current step | Checkout wizard (`/cart`) — 4 steps | Persists for the whole flow |
+| Interactive hero (3D tilt) | `<InteractiveHero>` — a hand-drawn, 3-layer SVG illustration inside a `perspective` container; each layer translates/rotates by a different fraction of the cursor offset (`onMouseMove`), springing back to center on `onMouseLeave` | Home page (`side="right"`) and the cart/checkout flow (`side="left"`); a `variant="clinic"` exists in the component but has no page yet | Continuous while the cursor is over it; ~300ms ease-out spring back |
 
 ### Data / lists
 
