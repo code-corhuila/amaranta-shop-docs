@@ -58,5 +58,5 @@ confirmations).
 
 | Role | Name | Contact |
 |------|------|---------|
-| Tech Lead / Product Owner / Full-stack developer | Francy Claros | francyclarosc@gmail.com |
+| Tech Lead / Product Owner / Full-stack developer | Brandow Claros | brandowclaros@gmail.com |
 | Course | Sistemas Distribuidos — Octavo Semestre | — |
