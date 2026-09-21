@@ -26,5 +26,6 @@ ADRs document important architectural decisions. Each file = one decision.
 | ADR-004 | Service Discovery | Accepted | 2026-08-25 |
 | ADR-005 | API Gateway | Accepted | 2026-08-25 |
 | ADR-006 | Backend Framework | Accepted | 2026-08-25 |
+| ADR-007 | Brand Color Palette: Fiery Ocean | Accepted | 2026-09-20 |
 
 > Add rows here as you create ADRs in `records/`
