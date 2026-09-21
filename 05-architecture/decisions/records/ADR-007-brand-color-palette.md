@@ -3,7 +3,7 @@
 - **ID:** ADR-007
 - **Date:** 2026-09-20
 - **Status:** Accepted
-- **Authors:** Francy Claros — Tech Lead / Full-stack developer
+- **Authors:** Brandow Claros — Tech Lead / Full-stack developer
 
 ---
 
