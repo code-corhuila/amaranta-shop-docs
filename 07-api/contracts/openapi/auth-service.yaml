@@ -3,18 +3,18 @@ info:
   title: Auth Service API
   version: 1.0.0
   description: |
-    Servicio de autenticación: registro, login, renovación de tokens y gestión de sesiones.
+    Authentication service: registration, login, token refresh, and session management.
 
-    ## Flujo de autenticación
-    1. `POST /auth/register` — crear cuenta
-    2. `POST /auth/login` — obtener access_token + refresh_token
-    3. Usar `access_token` en el header `Authorization: Bearer` para todos los demás endpoints
-    4. Cuando el access_token expire (1h): `POST /auth/refresh` con el refresh_token
-    5. Para cerrar sesión: `POST /auth/logout`
+    ## Authentication flow
+    1. `POST /auth/register` — create an account
+    2. `POST /auth/login` — get access_token + refresh_token
+    3. Use `access_token` in the `Authorization: Bearer` header for all other endpoints
+    4. When the access_token expires (1h): `POST /auth/refresh` with the refresh_token
+    5. To log out: `POST /auth/logout`
 
     ## Tokens
-    - **access_token**: JWT RS256, expira en 1 hora. Incluye userId, email, roles, permissions.
-    - **refresh_token**: Opaque token (UUID), expira en 7 días. Solo válido una vez (rotación).
+    - **access_token**: JWT RS256, expires in 1 hour. Includes userId, email, roles, permissions.
+    - **refresh_token**: Opaque token (UUID), expires in 7 days. Single-use only (rotation).
 
 servers:
   - url: http://localhost:8081
@@ -30,15 +30,15 @@ servers:
       domain:
         default: example.com
 
-security: []  # La mayoría de estos endpoints son públicos
+security: []  # Most of these endpoints are public
 
 tags:
   - name: Auth
-    description: Registro, login y gestión de sesiones
+    description: Registration, login, and session management
   - name: Keys
-    description: Claves públicas para verificación de tokens
+    description: Public keys for token verification
   - name: Health
-    description: Estado del servicio
+    description: Service status
 
 paths:
   /health:
@@ -48,7 +48,7 @@ paths:
       security: []
       responses:
         '200':
-          description: Servicio saludable
+          description: Service healthy
           content:
             application/json:
               schema:
@@ -70,7 +70,7 @@ paths:
 
   /register:
     post:
-      summary: Registrar un nuevo usuario
+      summary: Register a new user
       operationId: register
       tags: [Auth]
       requestBody:
@@ -80,12 +80,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
             example:
-              email: usuario@example.com
+              email: user@example.com
               password: "SecurePass123!"
-              name: "María García"
+              name: "Jane Doe"
       responses:
         '201':
-          description: Usuario registrado exitosamente
+          description: User registered successfully
           content:
             application/json:
               schema:
@@ -93,18 +93,18 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
-          description: El email ya está registrado
+          description: Email already registered
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: EMAIL_ALREADY_EXISTS
-                message: El email ya está registrado
+                message: Email already registered
 
   /login:
     post:
-      summary: Autenticar un usuario
+      summary: Authenticate a user
       operationId: login
       tags: [Auth]
       requestBody:
@@ -114,26 +114,26 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             example:
-              email: usuario@example.com
+              email: user@example.com
               password: "SecurePass123!"
       responses:
         '200':
-          description: Login exitoso
+          description: Login successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Credenciales inválidas
+          description: Invalid credentials
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: INVALID_CREDENTIALS
-                message: Email o contraseña incorrectos
+                message: Incorrect email or password
         '423':
-          description: Cuenta bloqueada temporalmente por intentos fallidos
+          description: Account temporarily locked after failed attempts
           content:
             application/json:
               schema:
@@ -141,7 +141,7 @@ paths:
 
   /refresh:
     post:
-      summary: Renovar el access token
+      summary: Refresh the access token
       operationId: refreshToken
       tags: [Auth]
       requestBody:
@@ -154,16 +154,16 @@ paths:
               properties:
                 refreshToken:
                   type: string
-                  description: Refresh token obtenido en login o en el último refresh
+                  description: Refresh token obtained at login or from the last refresh
       responses:
         '200':
-          description: Tokens renovados (el refresh token anterior ya no es válido)
+          description: Tokens refreshed (the previous refresh token is no longer valid)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Refresh token inválido, expirado o ya usado
+          description: Refresh token invalid, expired, or already used
           content:
             application/json:
               schema:
@@ -171,7 +171,7 @@ paths:
 
   /logout:
     post:
-      summary: Cerrar sesión
+      summary: Log out
       operationId: logout
       tags: [Auth]
       security:
@@ -185,21 +185,21 @@ paths:
               properties:
                 refreshToken:
                   type: string
-                  description: Si se provee, también revoca el refresh token
+                  description: If provided, also revokes this refresh token
                 allDevices:
                   type: boolean
-                  description: Si es true, revoca todos los refresh tokens del usuario
+                  description: If true, revokes all of the user's refresh tokens
                   default: false
       responses:
         '204':
-          description: Sesión cerrada exitosamente
+          description: Session closed successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
 
   /jwks:
     get:
-      summary: Claves públicas para verificación de tokens (JWKS)
-      description: Endpoint estándar JWKS para que los servicios verifiquen tokens sin llamar al auth-service.
+      summary: Public keys for token verification (JWKS)
+      description: Standard JWKS endpoint so services can verify tokens without calling auth-service.
       operationId: getJwks
       tags: [Keys]
       security: []
@@ -231,7 +231,7 @@ components:
           type: string
           minLength: 8
           maxLength: 100
-          description: Mínimo 8 caracteres, una mayúscula, un número
+          description: Minimum 8 characters, one uppercase letter, one number
         name:
           type: string
           minLength: 1
@@ -253,13 +253,13 @@ components:
       properties:
         accessToken:
           type: string
-          description: JWT RS256. Incluir en Authorization Bearer para requests autenticados.
+          description: JWT RS256. Include in Authorization Bearer for authenticated requests.
         refreshToken:
           type: string
-          description: Opaque token. Usar en POST /refresh cuando el access token expire.
+          description: Opaque token. Use in POST /refresh when the access token expires.
         expiresIn:
           type: integer
-          description: Segundos hasta la expiración del access token
+          description: Seconds until the access token expires
           example: 3600
         user:
           $ref: '#/components/schemas/UserSummary'
@@ -284,7 +284,7 @@ components:
           type: array
           items:
             type: string
-            description: Formato "[recurso]:[accion]"
+            description: Format "[resource]:[action]"
           example: ["appointment:read", "appointment:write"]
 
     ErrorResponse:
@@ -292,13 +292,13 @@ components:
 
   responses:
     BadRequest:
-      description: Error de validación
+      description: Validation error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
-      description: Token inválido o expirado
+      description: Invalid or expired token
       content:
         application/json:
           schema:
