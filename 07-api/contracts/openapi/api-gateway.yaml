@@ -16,7 +16,8 @@ info:
     ## Internal headers (service-to-service only)
     The gateway adds these headers before forwarding the request upstream:
     - `X-User-Id`: authenticated user's UUID
-    - `X-User-Role`: user's role (ADMIN, USER, VIEWER)
+    - `X-User-Role`: user's role (CUSTOMER, RECEPTIONIST, VETERINARIAN, GROOMER, ADMIN —
+      see `02-domain/domain-map.md` "Identity & Access")
     - `X-Correlation-Id`: trace ID to correlate logs
 
 servers:
@@ -73,13 +74,16 @@ paths:
                 timestamp: '2024-01-15T10:30:00Z'
                 upstreams:
                   auth-service: ok
-                  service-name: ok
+                  catalog-service: ok
+                  sales-service: ok
+                  scheduling-service: ok
+                  clinical-service: ok
         '503':
           description: The gateway is starting up or a critical upstream is down
           content:
             application/json:
               schema:
-                $ref: './auth-service.yaml#/components/schemas/ErrorResponse'
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:

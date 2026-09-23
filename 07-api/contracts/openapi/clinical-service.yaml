@@ -1,0 +1,255 @@
+openapi: 3.0.3
+info:
+  title: Clinical Records Service API
+  version: 1.0.0
+  description: |
+    Clinical Records bounded context: owns the `Pet` aggregate and the
+    `MedicalRecord` aggregate — pet identity and its accumulated medical
+    history. See `02-domain/domain-map.md` — Clinical Records bounded context
+    (Core subdomain).
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development (monolith, mounted under /api/v1)
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: example.com
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: example.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: clinical
+    description: Pets and their accumulated medical history
+
+paths:
+  /pets:
+    get:
+      summary: List the authenticated owner's own pets
+      operationId: listMyPets
+      tags: [clinical]
+      responses:
+        '200':
+          description: List of pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+    post:
+      summary: Register a pet
+      operationId: registerPet
+      tags: [clinical]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPetRequest'
+      responses:
+        '201':
+          description: Pet registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+    get:
+      summary: Get a pet by ID
+      description: Restricted to the pet's owner, or clinical staff.
+      operationId: getPet
+      tags: [clinical]
+      responses:
+        '200':
+          description: Pet found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /pets/{petId}/medical-history:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+    get:
+      summary: Get a pet's full medical history
+      description: Restricted to the pet's owner, or clinical staff.
+      operationId: getPetMedicalHistory
+      tags: [clinical]
+      responses:
+        '200':
+          description: List of medical records for this pet
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicalRecord'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /medical-records:
+    post:
+      summary: Add a medical record
+      description: Veterinarian only. Ties a diagnosis/treatment to a pet and an appointment.
+      operationId: addMedicalRecord
+      tags: [clinical]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMedicalRecordRequest'
+      responses:
+        '201':
+          description: Medical record added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only a Veterinarian may add a medical record
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Species:
+      type: string
+      enum: [DOG, CAT, OTHER]
+
+    RegisterPetRequest:
+      type: object
+      required: [name, species]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Firulais
+        species:
+          $ref: '#/components/schemas/Species'
+        breed:
+          type: string
+          maxLength: 60
+          example: Labrador
+        birthDate:
+          type: string
+          format: date
+          example: '2022-05-10'
+        weightKg:
+          type: number
+          minimum: 0.01
+          example: 12.5
+        photoUrl:
+          type: string
+          format: uri
+
+    Pet:
+      allOf:
+        - $ref: './_shared.yaml#/components/schemas/AuditFields'
+        - type: object
+          required: [id, ownerId, name, species]
+          properties:
+            id:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            ownerId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            name:
+              type: string
+            species:
+              $ref: '#/components/schemas/Species'
+            breed:
+              type: string
+            birthDate:
+              type: string
+              format: date
+            weightKg:
+              type: number
+            photoUrl:
+              type: string
+              format: uri
+
+    AddMedicalRecordRequest:
+      type: object
+      required: [appointmentId, diagnosis]
+      properties:
+        appointmentId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        diagnosis:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: Mild otitis in the right ear
+        treatment:
+          type: string
+          maxLength: 1000
+          example: Cleaning and ear drops for 7 days
+        notes:
+          type: string
+          maxLength: 1000
+
+    MedicalRecord:
+      allOf:
+        - $ref: './_shared.yaml#/components/schemas/AuditFields'
+        - type: object
+          required: [id, petId, appointmentId, veterinarianId, diagnosis]
+          properties:
+            id:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            petId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            appointmentId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            veterinarianId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            diagnosis:
+              type: string
+            treatment:
+              type: string
+            notes:
+              type: string
+
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
