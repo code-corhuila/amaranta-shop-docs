@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: Scheduling Service API
+  version: 1.0.0
+  description: |
+    Scheduling bounded context: owns the `Appointment` aggregate — booking,
+    business-hours validation, and conflict-free assignment of a professional to
+    a time slot. See `02-domain/domain-map.md` — Scheduling bounded context
+    (Core subdomain).
+
+    Business hours: 07:00-12:00 and 14:00-18:00, Monday to Saturday. An
+    appointment's full span must fit inside one of the two windows.
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development (monolith, mounted under /api/v1)
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: example.com
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: example.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: scheduling
+    description: Booking, cancelling, and completing appointments
+
+paths:
+  /appointments:
+    get:
+      summary: List the authenticated owner's own appointments
+      operationId: listMyAppointments
+      tags: [scheduling]
+      responses:
+        '200':
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+    post:
+      summary: Schedule an appointment
+      operationId: scheduleAppointment
+      tags: [scheduling]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleAppointmentRequest'
+      responses:
+        '201':
+          description: Appointment scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: >
+            Validation error, or the requested slot falls outside business hours
+            or conflicts with an existing appointment for that professional
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+
+  /appointments/assigned:
+    get:
+      summary: List appointments assigned to the authenticated professional
+      description: Veterinarian or Groomer only.
+      operationId: listAssignedAppointments
+      tags: [scheduling]
+      responses:
+        '200':
+          description: List of assigned appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only a Veterinarian or Groomer may view their assigned agenda
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /appointments/{appointmentId}/cancel:
+    parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+    post:
+      summary: Cancel an appointment
+      operationId: cancelAppointment
+      tags: [scheduling]
+      responses:
+        '200':
+          description: Appointment cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /appointments/{appointmentId}/complete:
+    parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+    post:
+      summary: Mark an appointment as completed
+      description: Veterinarian or Groomer only.
+      operationId: completeAppointment
+      tags: [scheduling]
+      responses:
+        '200':
+          description: Appointment completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only a Veterinarian or Groomer may complete an appointment
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+components:
+  schemas:
+    ServiceType:
+      type: string
+      description: >
+        MEDICAL_CONSULT, VACCINATION, SURGERY, and EMERGENCY require a
+        VETERINARIAN; GROOMING requires a GROOMER.
+      enum: [MEDICAL_CONSULT, VACCINATION, GROOMING, SURGERY, EMERGENCY]
+
+    AppointmentStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
+
+    ScheduleAppointmentRequest:
+      type: object
+      required: [petId, professionalId, serviceType, scheduledAt]
+      properties:
+        petId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        professionalId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        serviceType:
+          $ref: '#/components/schemas/ServiceType'
+        scheduledAt:
+          type: string
+          format: date-time
+          example: '2026-09-20T09:00:00.000Z'
+        durationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 120
+          description: Defaults to the service type's standard duration
+        notes:
+          type: string
+          maxLength: 300
+
+    Appointment:
+      allOf:
+        - $ref: './_shared.yaml#/components/schemas/AuditFields'
+        - type: object
+          required:
+            - id
+            - petId
+            - ownerId
+            - professionalId
+            - serviceType
+            - scheduledAt
+            - durationMinutes
+            - status
+          properties:
+            id:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            petId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            ownerId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            professionalId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            serviceType:
+              $ref: '#/components/schemas/ServiceType'
+            scheduledAt:
+              type: string
+              format: date-time
+            durationMinutes:
+              type: integer
+            status:
+              $ref: '#/components/schemas/AppointmentStatus'
+            notes:
+              type: string
+
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'

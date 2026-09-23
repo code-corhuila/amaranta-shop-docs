@@ -3,15 +3,15 @@ info:
   title: Shared Components
   version: 1.0.0
   description: |
-    Schemas y componentes compartidos entre todos los contratos API del proyecto.
-    Referencia estos componentes en tus contratos con: $ref: './_shared.yaml#/components/...'
+    Schemas and components shared across every API contract in the project.
+    Reference these components in your contracts with: $ref: './_shared.yaml#/components/...'
 
 components:
   schemas:
-    # ─── Paginación ───────────────────────────────────────────────────────────
+    # ─── Pagination ───────────────────────────────────────────────────────────
     PaginatedMeta:
       type: object
-      description: Metadatos de paginación incluidos en respuestas de listas
+      description: Pagination metadata included in list responses
       required: [page, limit, total, totalPages]
       properties:
         page:
@@ -25,29 +25,29 @@ components:
           example: 20
         total:
           type: integer
-          description: Total de registros que coinciden con el filtro
+          description: Total number of records matching the filter
           example: 142
         totalPages:
           type: integer
           example: 8
 
-    # ─── Errores ──────────────────────────────────────────────────────────────
+    # ─── Errors ──────────────────────────────────────────────────────────────
     ErrorResponse:
       type: object
-      description: Formato estándar de error para todos los endpoints
+      description: Standard error format for every endpoint
       required: [error, message]
       properties:
         error:
           type: string
-          description: Código de error en SCREAMING_SNAKE_CASE
+          description: Error code in SCREAMING_SNAKE_CASE
           example: VALIDATION_ERROR
         message:
           type: string
-          description: Mensaje legible por humanos
-          example: El campo email es requerido
+          description: Human-readable message
+          example: The email field is required
         details:
           type: array
-          description: Lista de errores específicos (para errores de validación)
+          description: List of specific errors (for validation errors)
           items:
             type: object
             properties:
@@ -56,13 +56,13 @@ components:
                 example: email
               message:
                 type: string
-                example: El campo email es requerido
+                example: The email field is required
         traceId:
           type: string
-          description: ID de traza para correlacionar con logs
+          description: Trace ID to correlate with logs
           example: 550e8400-e29b-41d4-a716-446655440000
 
-    # ─── Tipos comunes ────────────────────────────────────────────────────────
+    # ─── Common types ────────────────────────────────────────────────────────
     UUID:
       type: string
       format: uuid
@@ -75,7 +75,7 @@ components:
 
     AuditFields:
       type: object
-      description: Campos de auditoría incluidos en todas las entidades
+      description: Audit fields included on every entity
       properties:
         createdAt:
           $ref: '#/components/schemas/Timestamp'
@@ -84,12 +84,12 @@ components:
         createdBy:
           $ref: '#/components/schemas/UUID'
 
-  # ─── Parámetros reutilizables ────────────────────────────────────────────
+  # ─── Reusable parameters ────────────────────────────────────────────
   parameters:
     PageParam:
       name: page
       in: query
-      description: Número de página (empezando en 1)
+      description: Page number (starting at 1)
       schema:
         type: integer
         minimum: 1
@@ -98,7 +98,7 @@ components:
     LimitParam:
       name: limit
       in: query
-      description: Cantidad de resultados por página
+      description: Number of results per page
       schema:
         type: integer
         minimum: 1
@@ -109,71 +109,71 @@ components:
       name: id
       in: path
       required: true
-      description: ID único del recurso (UUID)
+      description: Unique resource ID (UUID)
       schema:
         $ref: '#/components/schemas/UUID'
 
-  # ─── Respuestas reutilizables ────────────────────────────────────────────
+  # ─── Reusable responses ────────────────────────────────────────────
   responses:
     BadRequest:
-      description: Error de validación en los datos enviados
+      description: Validation error in the submitted data
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: VALIDATION_ERROR
-            message: Datos de entrada inválidos
+            message: Invalid input data
             details:
               - field: email
-                message: Formato de email inválido
+                message: Invalid email format
 
     Unauthorized:
-      description: Token de autenticación ausente o inválido
+      description: Authentication token missing or invalid
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: UNAUTHORIZED
-            message: Token de autenticación requerido
+            message: Authentication token required
 
     Forbidden:
-      description: El usuario no tiene permisos para esta operación
+      description: The user does not have permission for this operation
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: FORBIDDEN
-            message: No tienes permisos para realizar esta acción
+            message: You do not have permission to perform this action
 
     NotFound:
-      description: El recurso solicitado no existe
+      description: The requested resource does not exist
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: NOT_FOUND
-            message: El recurso solicitado no existe
+            message: The requested resource does not exist
 
     InternalError:
-      description: Error interno del servidor
+      description: Internal server error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: INTERNAL_ERROR
-            message: Error interno del servidor
+            message: Internal server error
 
-  # ─── Seguridad ───────────────────────────────────────────────────────────
+  # ─── Security ───────────────────────────────────────────────────────────
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: |
-        Token JWT obtenido del endpoint POST /auth/login del servicio IAM.
-        Incluir en el header: Authorization: Bearer <token>
+        JWT token obtained from the IAM service's POST /auth/login endpoint.
+        Include it in the header: Authorization: Bearer <token>

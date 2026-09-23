@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: Sales Service API
+  version: 1.0.0
+  description: |
+    Sales bounded context: owns the `Order` aggregate — cart-to-checkout flow,
+    totals, and order status, for both online and in-store (receptionist-assisted)
+    purchases. See `02-domain/domain-map.md` — Sales bounded context (Core subdomain).
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development (monolith, mounted under /api/v1)
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: example.com
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: example.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: sales
+    description: Cart-to-checkout and order management
+
+paths:
+  /orders:
+    get:
+      summary: List the authenticated customer's own orders
+      operationId: listMyOrders
+      tags: [sales]
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+    post:
+      summary: Check out (online order)
+      description: Creates an order for the authenticated customer, channel ONLINE.
+      operationId: checkout
+      tags: [sales]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+
+  /orders/in-store:
+    post:
+      summary: Check out on behalf of a customer at the physical location
+      description: Receptionist-only. Creates an order, channel IN_STORE.
+      operationId: checkoutInStore
+      tags: [sales]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InStoreCheckoutRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only a Receptionist may create in-store orders
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /orders/{orderId}/mark-paid:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+    post:
+      summary: Mark an order as paid
+      description: Receptionist-only, for cash/card/transfer payments taken in person.
+      operationId: markOrderAsPaid
+      tags: [sales]
+      responses:
+        '200':
+          description: Order marked as paid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only a Receptionist may mark an order as paid
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+components:
+  schemas:
+    FulfillmentMethod:
+      type: string
+      enum: [PICKUP, DELIVERY]
+
+    PaymentMethod:
+      type: string
+      enum: [CASH, CARD, TRANSFER]
+
+    OrderChannel:
+      type: string
+      enum: [ONLINE, IN_STORE]
+
+    OrderStatus:
+      type: string
+      enum: [PENDING, PAID, CANCELLED, FULFILLED]
+
+    CheckoutItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        quantity:
+          type: integer
+          minimum: 1
+
+    CheckoutRequest:
+      type: object
+      required: [items, fulfillmentMethod, paymentMethod, contactName, contactPhone]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CheckoutItem'
+        fulfillmentMethod:
+          $ref: '#/components/schemas/FulfillmentMethod'
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        contactName:
+          type: string
+          example: Ana Torres
+        contactPhone:
+          type: string
+          example: "3001234567"
+        deliveryAddress:
+          type: string
+          description: Required when fulfillmentMethod is DELIVERY
+          example: Calle 10 # 5-20, Neiva
+
+    InStoreCheckoutRequest:
+      allOf:
+        - $ref: '#/components/schemas/CheckoutRequest'
+        - type: object
+          required: [customerId]
+          properties:
+            customerId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+              description: The customer this in-store order is placed for
+
+    OrderItem:
+      type: object
+      required: [productId, quantity, unitPrice]
+      properties:
+        productId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        quantity:
+          type: integer
+        unitPrice:
+          type: integer
+          description: Price in COP at the time of purchase (frozen snapshot)
+
+    Order:
+      allOf:
+        - $ref: './_shared.yaml#/components/schemas/AuditFields'
+        - type: object
+          required:
+            - id
+            - customerId
+            - channel
+            - status
+            - items
+            - fulfillmentMethod
+            - paymentMethod
+            - total
+          properties:
+            id:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            customerId:
+              $ref: './_shared.yaml#/components/schemas/UUID'
+            channel:
+              $ref: '#/components/schemas/OrderChannel'
+            status:
+              $ref: '#/components/schemas/OrderStatus'
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderItem'
+            fulfillmentMethod:
+              $ref: '#/components/schemas/FulfillmentMethod'
+            paymentMethod:
+              $ref: '#/components/schemas/PaymentMethod'
+            total:
+              type: integer
+              description: Order total in COP
+
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'

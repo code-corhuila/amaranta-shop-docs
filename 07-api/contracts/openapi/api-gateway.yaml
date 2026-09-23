@@ -3,21 +3,22 @@ info:
   title: API Gateway
   version: 1.0.0
   description: |
-    Punto único de entrada al sistema. El gateway enruta las peticiones a los
-    microservicios correspondientes según el path.
+    Single entry point to the system. The gateway routes requests to the
+    corresponding microservices based on path.
 
-    ## Autenticación
-    La mayoría de los endpoints requieren un JWT válido:
+    ## Authentication
+    Most endpoints require a valid JWT:
     ```
     Authorization: Bearer <access_token>
     ```
-    El token se obtiene en `POST /api/v1/auth/login` (ver `auth-service.yaml`).
+    The token is obtained from `POST /api/v1/auth/login` (see `auth-service.yaml`).
 
-    ## Headers internos (solo entre servicios)
-    El gateway agrega estos headers antes de reenviar la petición al upstream:
-    - `X-User-Id`: UUID del usuario autenticado
-    - `X-User-Role`: Rol del usuario (ADMIN, USER, VIEWER)
-    - `X-Correlation-Id`: ID de traza para correlacionar logs
+    ## Internal headers (service-to-service only)
+    The gateway adds these headers before forwarding the request upstream:
+    - `X-User-Id`: authenticated user's UUID
+    - `X-User-Role`: user's role (CUSTOMER, RECEPTIONIST, VETERINARIAN, GROOMER, ADMIN —
+      see `02-domain/domain-map.md` "Identity & Access")
+    - `X-Correlation-Id`: trace ID to correlate logs
 
 servers:
   - url: http://localhost:8080
@@ -35,21 +36,21 @@ servers:
 
 tags:
   - name: Health
-    description: Estado del gateway y sus upstreams
+    description: Gateway and upstream service status
 
 paths:
   /health:
     get:
-      summary: Health check del gateway
+      summary: Gateway health check
       description: |
-        Verifica que el gateway esté funcionando y que todos los servicios upstream
-        estén respondiendo. No requiere autenticación.
+        Verifies the gateway is running and every upstream service is
+        responding. No authentication required.
       tags:
         - Health
       security: []
       responses:
         '200':
-          description: Gateway y upstreams saludables
+          description: Gateway and upstreams healthy
           content:
             application/json:
               schema:
@@ -64,7 +65,7 @@ paths:
                     format: date-time
                   upstreams:
                     type: object
-                    description: Estado de cada microservicio
+                    description: Status of each microservice
                     additionalProperties:
                       type: string
                       enum: [ok, degraded, down]
@@ -73,13 +74,16 @@ paths:
                 timestamp: '2024-01-15T10:30:00Z'
                 upstreams:
                   auth-service: ok
-                  nombre-servicio: ok
+                  catalog-service: ok
+                  sales-service: ok
+                  scheduling-service: ok
+                  clinical-service: ok
         '503':
-          description: El gateway está iniciando o un upstream crítico está caído
+          description: The gateway is starting up or a critical upstream is down
           content:
             application/json:
               schema:
-                $ref: './auth-service.yaml#/components/schemas/ErrorResponse'
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:

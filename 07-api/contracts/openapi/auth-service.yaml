@@ -3,239 +3,227 @@ info:
   title: Auth Service API
   version: 1.0.0
   description: |
-    Servicio de autenticación: registro, login, renovación de tokens y gestión de sesiones.
+    Identity & Access context: registration, login, staff/customer lookup. Owns the
+    `User` aggregate. See `02-domain/domain-map.md` — Identity & Access bounded context.
 
-    ## Flujo de autenticación
-    1. `POST /auth/register` — crear cuenta
-    2. `POST /auth/login` — obtener access_token + refresh_token
-    3. Usar `access_token` en el header `Authorization: Bearer` para todos los demás endpoints
-    4. Cuando el access_token expire (1h): `POST /auth/refresh` con el refresh_token
-    5. Para cerrar sesión: `POST /auth/logout`
+    ## Authentication flow
+    1. `POST /auth/register` — self-service customer registration
+    2. `POST /auth/login` — returns an access token
+    3. Use the access token in the `Authorization: Bearer` header for protected endpoints
 
-    ## Tokens
-    - **access_token**: JWT RS256, expira en 1 hora. Incluye userId, email, roles, permissions.
-    - **refresh_token**: Opaque token (UUID), expira en 7 días. Solo válido una vez (rotación).
+    ## Roles
+    `CUSTOMER`, `RECEPTIONIST`, `VETERINARIAN`, `GROOMER`, `ADMIN` — see
+    `02-domain/domain-map.md` "Identity & Access" for the full definition of each.
 
 servers:
-  - url: http://localhost:8081
-    description: Local development
-  - url: https://api.dev.{domain}/api/v1/auth
+  - url: http://localhost:3000/api/v1
+    description: Local development (monolith, mounted under /api/v1)
+  - url: https://api.dev.{domain}/api/v1
     description: Development
     variables:
       domain:
         default: example.com
-  - url: https://api.{domain}/api/v1/auth
+  - url: https://api.{domain}/api/v1
     description: Production
     variables:
       domain:
         default: example.com
 
-security: []  # La mayoría de estos endpoints son públicos
-
 tags:
-  - name: Auth
-    description: Registro, login y gestión de sesiones
-  - name: Keys
-    description: Claves públicas para verificación de tokens
-  - name: Health
-    description: Estado del servicio
+  - name: identity
+    description: Registration, login, staff and customer lookup
 
 paths:
-  /health:
-    get:
-      summary: Health check
-      tags: [Health]
-      security: []
-      responses:
-        '200':
-          description: Servicio saludable
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [ok]
-                  db:
-                    type: string
-                    enum: [connected, disconnected]
-                  redis:
-                    type: string
-                    enum: [connected, disconnected]
-              example:
-                status: ok
-                db: connected
-                redis: connected
-
-  /register:
+  /auth/register:
     post:
-      summary: Registrar un nuevo usuario
+      summary: Self-service customer registration
       operationId: register
-      tags: [Auth]
+      tags: [identity]
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
-            example:
-              email: usuario@example.com
-              password: "SecurePass123!"
-              name: "María García"
       responses:
         '201':
-          description: Usuario registrado exitosamente
+          description: User registered
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: './_shared.yaml#/components/responses/BadRequest'
         '409':
-          description: El email ya está registrado
+          description: Email already registered
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
               example:
                 error: EMAIL_ALREADY_EXISTS
-                message: El email ya está registrado
+                message: A user with this email already exists
 
-  /login:
+  /auth/register-walk-in:
     post:
-      summary: Autenticar un usuario
+      summary: Register a walk-in customer on their behalf
+      description: >
+        Used by front-desk staff to create a customer account for someone buying
+        or booking in person, without setting a password for them.
+      operationId: registerWalkIn
+      tags: [identity]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterWalkInCustomerRequest'
+      responses:
+        '201':
+          description: Walk-in customer registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only a Receptionist may register walk-in customers
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Authenticate a user
       operationId: login
-      tags: [Auth]
+      tags: [identity]
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
-            example:
-              email: usuario@example.com
-              password: "SecurePass123!"
       responses:
         '200':
-          description: Login exitoso
+          description: Login successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Credenciales inválidas
+          description: Invalid credentials
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
               example:
                 error: INVALID_CREDENTIALS
-                message: Email o contraseña incorrectos
-        '423':
-          description: Cuenta bloqueada temporalmente por intentos fallidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                message: Email or password is incorrect
 
-  /refresh:
-    post:
-      summary: Renovar el access token
-      operationId: refreshToken
-      tags: [Auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [refreshToken]
-              properties:
-                refreshToken:
-                  type: string
-                  description: Refresh token obtenido en login o en el último refresh
-      responses:
-        '200':
-          description: Tokens renovados (el refresh token anterior ya no es válido)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '401':
-          description: Refresh token inválido, expirado o ya usado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /logout:
-    post:
-      summary: Cerrar sesión
-      operationId: logout
-      tags: [Auth]
+  /auth/staff:
+    get:
+      summary: List staff members
+      description: Returns every user whose role is not CUSTOMER.
+      operationId: listStaff
+      tags: [identity]
       security:
         - bearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  description: Si se provee, también revoca el refresh token
-                allDevices:
-                  type: boolean
-                  description: Si es true, revoca todos los refresh tokens del usuario
-                  default: false
-      responses:
-        '204':
-          description: Sesión cerrada exitosamente
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /jwks:
-    get:
-      summary: Claves públicas para verificación de tokens (JWKS)
-      description: Endpoint estándar JWKS para que los servicios verifiquen tokens sin llamar al auth-service.
-      operationId: getJwks
-      tags: [Keys]
-      security: []
       responses:
         '200':
-          description: JSON Web Key Set
+          description: List of staff members
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  keys:
-                    type: array
-                    items:
-                      type: object
-                      description: JWK (RFC 7517)
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+
+  /auth/customers:
+    get:
+      summary: Find a customer by email
+      description: Used at the front desk to look up an existing customer before checkout or booking.
+      operationId: findCustomerByEmail
+      tags: [identity]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Customer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          description: Only Receptionist or Admin may look up customers
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+        '404':
+          description: No customer found with that email
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
 
 components:
   schemas:
     RegisterRequest:
       type: object
-      required: [email, password, name]
+      required: [fullName, email, password]
       properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Ana Torres
         email:
           type: string
           format: email
-          maxLength: 255
+          example: ana@example.com
         password:
           type: string
           minLength: 8
-          maxLength: 100
-          description: Mínimo 8 caracteres, una mayúscula, un número
-        name:
+          example: supersecret123
+        phone:
           type: string
-          minLength: 1
+          example: "3001234567"
+
+    RegisterWalkInCustomerRequest:
+      type: object
+      required: [fullName, email]
+      properties:
+        fullName:
+          type: string
+          minLength: 2
           maxLength: 100
+          example: Ana Torres
+        email:
+          type: string
+          format: email
+          example: ana@example.com
+        phone:
+          type: string
+          example: "3001234567"
 
     LoginRequest:
       type: object
@@ -244,66 +232,52 @@ components:
         email:
           type: string
           format: email
+          example: ana@example.com
         password:
           type: string
+          example: supersecret123
 
     AuthResponse:
       type: object
-      required: [accessToken, refreshToken, expiresIn, user]
+      required: [userId, fullName, email, role, accessToken]
       properties:
-        accessToken:
-          type: string
-          description: JWT RS256. Incluir en Authorization Bearer para requests autenticados.
-        refreshToken:
-          type: string
-          description: Opaque token. Usar en POST /refresh cuando el access token expire.
-        expiresIn:
-          type: integer
-          description: Segundos hasta la expiración del access token
-          example: 3600
-        user:
-          $ref: '#/components/schemas/UserSummary'
-
-    UserSummary:
-      type: object
-      required: [id, email, roles]
-      properties:
-        id:
+        userId:
           $ref: './_shared.yaml#/components/schemas/UUID'
+        fullName:
+          type: string
         email:
           type: string
           format: email
-        name:
+        role:
+          $ref: '#/components/schemas/UserRole'
+        accessToken:
           type: string
-        roles:
-          type: array
-          items:
-            type: string
-            enum: [ADMIN, USER, VIEWER]
-        permissions:
-          type: array
-          items:
-            type: string
-            description: Formato "[recurso]:[accion]"
-          example: ["appointment:read", "appointment:write"]
+          description: JWT. Include in Authorization Bearer for authenticated requests.
 
-    ErrorResponse:
-      $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+    UserSummary:
+      type: object
+      required: [userId, fullName, email, role]
+      properties:
+        userId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
 
-  responses:
-    BadRequest:
-      description: Error de validación
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Unauthorized:
-      description: Token inválido o expirado
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+    UserRole:
+      type: string
+      description: See 02-domain/domain-map.md — Identity & Access bounded context
+      enum: [CUSTOMER, RECEPTIONIST, VETERINARIAN, GROOMER, ADMIN]
 
   securitySchemes:
     bearerAuth:
       $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
+
+security:
+  - bearerAuth: []
