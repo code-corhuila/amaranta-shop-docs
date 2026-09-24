@@ -62,6 +62,72 @@ components:
           description: Trace ID to correlate with logs
           example: 550e8400-e29b-41d4-a716-446655440000
 
+    # ─── Error shapes as actually produced (verified, not the `ErrorResponse` ideal) ──────────
+    # See `07-api/sales-api-decisions.md` §1 for how these were found and G-1/G-2 for why they
+    # haven't been unified with `ErrorResponse` yet — that's a `shared/` code change, not a docs
+    # fix. Each corresponds to one real response pipeline in `apps/api/src/`.
+    ValidationErrorResponse:
+      type: object
+      description: |
+        Nest's built-in `ValidationPipe` default shape (no custom `exceptionFactory` is
+        registered in `main.ts`). Returned when a request body fails `class-validator` rules.
+      required: [statusCode, message, error]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: array
+          description: One string per failing field-rule — not a single message.
+          items:
+            type: string
+          example: ['quantity must not be less than 1']
+        error:
+          type: string
+          example: Bad Request
+
+    DomainErrorResponse:
+      type: object
+      description: |
+        Produced by `DomainExceptionFilter` (`shared/infrastructure/http/domain-exception.filter.ts`)
+        for every `DomainException`, regardless of whether the violation is really a validation
+        problem, a state conflict, or a missing resource — it is always answered as 400. See
+        `07-api/sales-api-decisions.md` G-1.
+      required: [statusCode, code, message]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        code:
+          type: string
+          description: The domain's own invariant/error code — not a fixed enum, whatever the throw site used.
+          example: INV-PRODUCT-002
+        message:
+          type: string
+          example: '"Dog food 3kg" only has 2 unit(s) left (requested 5)'
+
+    NestDefaultErrorResponse:
+      type: object
+      description: |
+        The shape Nest's built-in `HttpException` subclasses produce when constructed with just
+        a message (or none): `NotFoundException`, `UnauthorizedException` (thrown by
+        `JwtAuthGuard`/`passport-jwt` on a missing or invalid token), and `ForbiddenException`
+        (thrown by `RolesGuard`) all return this — same three fields, `error` set to that status
+        code's standard reason phrase. **Not empty** — verified against `roles.guard.ts`,
+        `mark-order-as-paid.use-case.ts`, and Nest/passport's own default `handleRequest`.
+      required: [statusCode, message, error]
+      properties:
+        statusCode:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: 'Order "3f9e2b1a-..." was not found'
+        error:
+          type: string
+          description: The HTTP status's standard reason phrase — "Unauthorized", "Forbidden", "Not Found".
+          example: Not Found
+
     # ─── Common types ────────────────────────────────────────────────────────
     UUID:
       type: string

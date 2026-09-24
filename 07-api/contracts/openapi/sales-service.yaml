@@ -7,6 +7,10 @@ info:
     totals, and order status, for both online and in-store (receptionist-assisted)
     purchases. See `02-domain/domain-map.md` — Sales bounded context (Core subdomain).
 
+    Error response shapes below are the ones verified against the running code, not the
+    generic `_shared.yaml#ErrorResponse`. See `../sales-api-decisions.md` for why they
+    differ and what closing that gap would take (G-1, G-2).
+
 servers:
   - url: http://localhost:3000/api/v1
     description: Local development (monolith, mounted under /api/v1)
@@ -44,12 +48,22 @@ paths:
                 items:
                   $ref: '#/components/schemas/Order'
         '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
+          description: No token, or a token that fails verification (`JwtAuthGuard`/`passport-jwt`'s default `handleRequest`).
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/NestDefaultErrorResponse'
     post:
       summary: Check out (online order)
-      description: Creates an order for the authenticated customer, channel ONLINE.
+      description: |
+        Creates an order, channel ONLINE. **Auth is optional** — `OptionalJwtAuthGuard`, not
+        `JwtAuthGuard` — see `../sales-api-decisions.md` (D-S1). An anonymous request is
+        attributed to the walk-in customer; an authenticated one, to the caller.
       operationId: checkout
       tags: [sales]
+      security:
+        - {}
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -64,14 +78,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Order'
         '400':
-          $ref: './_shared.yaml#/components/responses/BadRequest'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
+          description: |
+            Two different shapes reach a client here — see `../sales-api-decisions.md` §1 and §3.
+            A request-shape problem (missing/invalid field) answers as `ValidationErrorResponse`.
+            A business rule (store closed, duplicate product line, product not found, insufficient
+            stock) answers as `DomainErrorResponse` — **including cases that are semantically a
+            404 or a 409** (`PRODUCT_NOT_FOUND`, `INV-PRODUCT-002`); see gap G-1.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: './_shared.yaml#/components/schemas/ValidationErrorResponse'
+                  - $ref: './_shared.yaml#/components/schemas/DomainErrorResponse'
 
   /orders/in-store:
     post:
       summary: Check out on behalf of a customer at the physical location
-      description: Receptionist-only. Creates an order, channel IN_STORE.
+      description: |
+        Receptionist-only. Creates an order, channel IN_STORE. Auth is **mandatory** here
+        (`JwtAuthGuard` + `RolesGuard`, unlike `POST /orders` — see D-S1 in
+        `../sales-api-decisions.md`).
       operationId: checkoutInStore
       tags: [sales]
       requestBody:
@@ -88,15 +114,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Order'
         '400':
-          $ref: './_shared.yaml#/components/responses/BadRequest'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          description: Only a Receptionist may create in-store orders
+          description: |
+            Same two shapes as `POST /orders` — see `../sales-api-decisions.md` §1 and §3.
           content:
             application/json:
               schema:
-                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+                oneOf:
+                  - $ref: './_shared.yaml#/components/schemas/ValidationErrorResponse'
+                  - $ref: './_shared.yaml#/components/schemas/DomainErrorResponse'
+        '401':
+          description: No token, or a token that fails verification.
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/NestDefaultErrorResponse'
+        '403':
+          description: Only a Receptionist may create in-store orders (`RolesGuard`).
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/NestDefaultErrorResponse'
 
   /orders/{orderId}/mark-paid:
     parameters:
@@ -117,16 +154,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          description: Only a Receptionist may mark an order as paid
+        '400':
+          description: |
+            The order exists but is not `PENDING` (`INV-ORDER-005`) — semantically a conflict
+            (409), reported as 400 today. See `../sales-api-decisions.md` gap G-1.
           content:
             application/json:
               schema:
-                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+                $ref: './_shared.yaml#/components/schemas/DomainErrorResponse'
+        '401':
+          description: No token, or a token that fails verification.
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/NestDefaultErrorResponse'
+        '403':
+          description: Only a Receptionist may mark an order as paid (`RolesGuard`).
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/NestDefaultErrorResponse'
         '404':
-          $ref: './_shared.yaml#/components/responses/NotFound'
+          description: No order exists with this id (`NotFoundException`, thrown directly by the use-case — not a `DomainException`).
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/NestDefaultErrorResponse'
 
 components:
   schemas:
