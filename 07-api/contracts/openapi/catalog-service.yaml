@@ -3,32 +3,28 @@ info:
   title: Catalog Service API
   version: 1.0.0
   description: |
-    Catalog bounded context: owns the `Product` aggregate — what is for sale, its
-    price in COP, and its stock level. See `02-domain/domain-map.md` — Catalog
-    bounded context (Supporting subdomain).
+    Catalog bounded context in the current Amaranta monolith.
+    This contract documents the public product-list endpoint that is implemented
+    today. Admin CRUD routes remain pending and were not implemented in the code
+    reviewed for this sprint.
 
 servers:
-  - url: http://localhost:3000/api/v1
-    description: Local development (monolith, mounted under /api/v1)
-  - url: https://api.dev.{domain}/api/v1
+  - url: http://localhost:8080
+    description: Local monolith (current implementation)
+  - url: https://api.dev.{domain}
     description: Development
     variables:
       domain:
         default: example.com
-  - url: https://api.{domain}/api/v1
+  - url: https://api.{domain}
     description: Production
     variables:
       domain:
         default: example.com
 
-security:
-  - bearerAuth: []
-
 tags:
   - name: catalog
-    description: Public product listing
-  - name: catalog-admin
-    description: Product management — ADMIN role only
+    description: Public catalog listing and product visibility for customers
 
 paths:
   /products:
@@ -37,18 +33,28 @@ paths:
       operationId: listProducts
       tags: [catalog]
       security: []
+      description: |
+        Returns the active product catalog for the current store. The monolith
+        implementation uses offset pagination and coerces query params with
+        `Number(...)`. Invalid values fall back to the default page and pageSize
+        values instead of producing a validation error.
       parameters:
         - name: page
           in: query
+          required: false
+          description: 1-indexed page number. Defaults to 1.
           schema:
             type: integer
             minimum: 1
             default: 1
         - name: pageSize
           in: query
+          required: false
+          description: Number of items per page. Defaults to 50 and is capped at 50.
           schema:
             type: integer
             minimum: 1
+            maximum: 50
             default: 50
       responses:
         '200':
@@ -56,197 +62,24 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [data, meta]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Product'
-                  meta:
-                    $ref: './_shared.yaml#/components/schemas/PaginatedMeta'
-
-  /admin/products:
-    get:
-      summary: List every product (including inactive)
-      operationId: listAllProducts
-      tags: [catalog-admin]
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: pageSize
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 50
-      responses:
-        '200':
-          description: Paginated list of every product
+                $ref: '#/components/schemas/ListProductsResponse'
+        '400':
+          description: Query validation is not enforced in code; invalid numeric values are coerced and defaulted.
           content:
             application/json:
               schema:
                 type: object
-                required: [data, meta]
+                description: The current code does not return a structured validation error here.
                 properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Product'
-                  meta:
-                    $ref: './_shared.yaml#/components/schemas/PaginatedMeta'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './_shared.yaml#/components/responses/Forbidden'
-    post:
-      summary: Create a product
-      operationId: createProduct
-      tags: [catalog-admin]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateProductRequest'
-      responses:
-        '201':
-          description: Product created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          $ref: './_shared.yaml#/components/responses/BadRequest'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './_shared.yaml#/components/responses/Forbidden'
-
-  /admin/products/{productId}:
-    parameters:
-      - name: productId
-        in: path
-        required: true
-        schema:
-          $ref: './_shared.yaml#/components/schemas/UUID'
-    patch:
-      summary: Update a product
-      description: Partial update — only the submitted fields are modified.
-      operationId: updateProduct
-      tags: [catalog-admin]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateProductRequest'
-      responses:
-        '200':
-          description: Product updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          $ref: './_shared.yaml#/components/responses/BadRequest'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './_shared.yaml#/components/responses/Forbidden'
-        '404':
-          $ref: './_shared.yaml#/components/responses/NotFound'
-
-  /admin/products/{productId}/stock:
-    parameters:
-      - name: productId
-        in: path
-        required: true
-        schema:
-          $ref: './_shared.yaml#/components/schemas/UUID'
-    patch:
-      summary: Set the product's stock quantity
-      operationId: setProductStock
-      tags: [catalog-admin]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [stockQuantity]
-              properties:
-                stockQuantity:
-                  type: integer
-                  minimum: 0
-                  example: 35
-      responses:
-        '200':
-          description: Stock updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './_shared.yaml#/components/responses/Forbidden'
-        '404':
-          $ref: './_shared.yaml#/components/responses/NotFound'
-
-  /admin/products/{productId}/activate:
-    parameters:
-      - name: productId
-        in: path
-        required: true
-        schema:
-          $ref: './_shared.yaml#/components/schemas/UUID'
-    post:
-      summary: Reactivate a product (makes it visible in the public catalog again)
-      operationId: activateProduct
-      tags: [catalog-admin]
-      responses:
-        '200':
-          description: Product activated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './_shared.yaml#/components/responses/Forbidden'
-        '404':
-          $ref: './_shared.yaml#/components/responses/NotFound'
-
-  /admin/products/{productId}/deactivate:
-    parameters:
-      - name: productId
-        in: path
-        required: true
-        schema:
-          $ref: './_shared.yaml#/components/schemas/UUID'
-    post:
-      summary: Deactivate a product (hides it from the public catalog)
-      operationId: deactivateProduct
-      tags: [catalog-admin]
-      responses:
-        '200':
-          description: Product deactivated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '401':
-          $ref: './_shared.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './_shared.yaml#/components/responses/Forbidden'
-        '404':
-          $ref: './_shared.yaml#/components/responses/NotFound'
+                  statusCode:
+                    type: integer
+                    example: 400
+                  code:
+                    type: string
+                    example: INVALID_QUERY
+                  message:
+                    type: string
+                    example: Invalid query parameters
 
 components:
   schemas:
@@ -254,56 +87,22 @@ components:
       type: string
       enum: [FOOD, ACCESSORIES, HYGIENE, MEDICATION, TOYS]
 
-    Product:
-      allOf:
-        - $ref: './_shared.yaml#/components/schemas/AuditFields'
-        - type: object
-          required: [id, sku, name, description, category, price, stockQuantity, imageUrl, isActive]
-          properties:
-            id:
-              $ref: './_shared.yaml#/components/schemas/UUID'
-            sku:
-              type: string
-              example: FOOD-DOG-001
-            name:
-              type: string
-              example: Adult dog kibble 3kg
-            description:
-              type: string
-              example: Balanced feed for adult dogs of any breed
-            category:
-              $ref: '#/components/schemas/ProductCategory'
-            price:
-              type: integer
-              description: Price in COP, integer
-              example: 45000
-            stockQuantity:
-              type: integer
-              example: 20
-            imageUrl:
-              type: string
-              format: uri
-            isActive:
-              type: boolean
-
-    CreateProductRequest:
+    ProductSummary:
       type: object
-      required: [sku, name, description, category, price, stockQuantity, imageUrl]
+      required: [id, sku, name, description, category, price, priceFormatted, stockQuantity, inStock, imageUrl]
       properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
         sku:
           type: string
-          minLength: 2
-          maxLength: 50
           example: FOOD-DOG-001
         name:
           type: string
-          minLength: 1
-          maxLength: 120
           example: Adult dog kibble 3kg
         description:
           type: string
-          minLength: 1
-          maxLength: 500
           example: Balanced feed for adult dogs of any breed
         category:
           $ref: '#/components/schemas/ProductCategory'
@@ -311,35 +110,46 @@ components:
           type: integer
           description: Price in COP, integer
           example: 45000
+        priceFormatted:
+          type: string
+          description: Human-readable money representation produced by the domain object
+          example: "$45.000,00"
         stockQuantity:
           type: integer
-          minimum: 0
           example: 20
+        inStock:
+          type: boolean
+          example: true
         imageUrl:
           type: string
           format: uri
+          example: https://example.com/products/food-dog-001.jpg
 
-    UpdateProductRequest:
+    ListProductsResponse:
       type: object
-      description: All fields optional — only the submitted ones are changed
+      required: [items, page, pageSize, total]
       properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
-        description:
-          type: string
-          minLength: 1
-          maxLength: 500
-        category:
-          $ref: '#/components/schemas/ProductCategory'
-        price:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSummary'
+        page:
           type: integer
-          description: Price in COP, integer
-        imageUrl:
-          type: string
-          format: uri
+          minimum: 1
+          example: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 50
+          example: 50
+        total:
+          type: integer
+          minimum: 0
+          example: 27
 
   securitySchemes:
     bearerAuth:
-      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Reserved for future admin catalog operations; not used by the current public catalog endpoint.
