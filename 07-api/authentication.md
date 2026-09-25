@@ -51,3 +51,14 @@ Two guards stack on top of each other:
 
 Public endpoints (`security: []` in the OpenAPI contracts) are: `POST /auth/register`,
 `POST /auth/login`, and every service's `GET /health`.
+
+`POST /orders` (checkout) is a special case, not a public endpoint in the same sense: it accepts
+**both** an anonymous request and an authenticated one (`OptionalJwtAuthGuard`, not
+`JwtAuthGuard`). Unlike every other guarded endpoint, an invalid, expired or malformed token here
+does **not** produce a 401 — `OptionalJwtAuthGuard.handleRequest` normalizes any failure to
+"no user" and lets the request through as anonymous. A missing token and a bad one are
+indistinguishable to this endpoint; only a token that verifies is treated as the caller. An
+anonymous (or silently-degraded) checkout is attributed to the same walk-in customer used for
+in-store sales; an authenticated one is attributed to the caller, so it shows up in
+`GET /orders`. See `07-api/sales-api-decisions.md` (D-S1, G-5) for why, and for the customer-facing
+risk that creates.
