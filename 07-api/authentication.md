@@ -4,9 +4,18 @@
 
 ## Mechanism
 
-JWT, signed with a shared secret (HS256, via `@nestjs/jwt`'s default signing
-algorithm), issued by the Identity & Access context. There is no OAuth2 provider
-and no API Key scheme — a single Bearer JWT covers every protected endpoint.
+JWT, signed with **RS256** (RSA private key), issued by the Identity & Access
+context. There is no OAuth2 provider and no API Key scheme — a single Bearer JWT
+covers every protected endpoint.
+
+Only the identity module holds `JWT_PRIVATE_KEY`. Every guard that verifies a
+token — including future services split out of this monolith — uses only
+`JWT_PUBLIC_KEY`, and rejects any token whose header declares an algorithm other
+than `RS256` (`none` and `HS256` included). See
+[`ADR-009`](../05-architecture/decisions/records/ADR-009-jwt-rs256-per-course-norm.md)
+for why this replaced an earlier HS256 design
+([`ADR-008`](../05-architecture/decisions/records/ADR-008-jwt-signing-and-token-lifecycle.md),
+superseded).
 
 ## Flow
 
