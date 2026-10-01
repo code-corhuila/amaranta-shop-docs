@@ -15,6 +15,11 @@ info:
     `CUSTOMER`, `RECEPTIONIST`, `VETERINARIAN`, `GROOMER`, `ADMIN` — see
     `02-domain/domain-map.md` "Identity & Access" for the full definition of each.
 
+    ## Token signing
+    The access token is a JWT signed with **RS256** (RSA private key). Every other
+    service verifies it with the corresponding **public key** only — no service other
+    than this one ever holds the private key. See `authentication.md` and `ADR-009`.
+
 servers:
   - url: http://localhost:3000/api/v1
     description: Local development (monolith, mounted under /api/v1)
@@ -252,7 +257,9 @@ components:
           $ref: '#/components/schemas/UserRole'
         accessToken:
           type: string
-          description: JWT. Include in Authorization Bearer for authenticated requests.
+          description: >
+            JWT signed with RS256. Include in Authorization Bearer for authenticated
+            requests. Verify with the identity service's public key only.
 
     UserSummary:
       type: object
