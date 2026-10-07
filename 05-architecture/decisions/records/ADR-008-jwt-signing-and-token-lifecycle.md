@@ -2,7 +2,7 @@
 
 - **ID:** ADR-008
 - **Date:** 2026-09-23
-- **Status:** Superseded by [ADR-009](./ADR-009-jwt-rs256-per-course-norm.md)
+- **Status:** Superseded by [ADR-009](./ADR-009-jwt-rs256-per-course-norm.md) (signing) and [ADR-011](./ADR-011-identity-design-with-revocation.md) (token lifecycle)
 - **Authors:** Brandow Claros — Tech Lead / Product Owner / Full-stack developer
 
 ---

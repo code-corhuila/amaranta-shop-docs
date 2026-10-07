@@ -27,7 +27,9 @@ ADRs document important architectural decisions. Each file = one decision.
 | ADR-005 | API Gateway | Accepted | 2026-08-25 |
 | ADR-006 | Backend Framework | Accepted | 2026-08-25 |
 | ADR-007 | Brand Color Palette: Fiery Ocean | Accepted | 2026-09-20 |
-| ADR-008 | JWT Signing Algorithm and Token Lifecycle | Superseded by ADR-009 | 2026-09-23 |
+| ADR-008 | JWT Signing Algorithm and Token Lifecycle | Superseded by ADR-009 and ADR-011 | 2026-09-23 |
 | ADR-009 | JWT Signing: RS256, Per the Course Norm | Accepted | 2026-09-27 |
+| ADR-010 | Engine per Domain: Sales on PostgreSQL, Catalog on MongoDB | Accepted | 2026-10-07 |
+| ADR-011 | Identity Design: the Security Service Owns Accounts, Tokens and Revocation | Accepted | 2026-10-07 |
 
 > Add rows here as you create ADRs in `records/`
