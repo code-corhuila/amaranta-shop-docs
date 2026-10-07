@@ -18,13 +18,13 @@ The 3 files in this folder (`navigation-map.md`, `design-system.md`, `wireframes
 already filled in — they document the **monolith MVP** that actually implements this design,
 built in a separate repo:
 
-**Repo:** https://github.com/BrandowC/amaranta-shop-mvp
+**Repo:** https://github.com/BrandowC/amaranta
 
 **Run it locally (fastest path):**
 
 ```bash
-git clone https://github.com/BrandowC/amaranta-shop-mvp.git
-cd amaranta-shop-mvp
+git clone https://github.com/BrandowC/amaranta.git
+cd amaranta
 cp .env.example .env
 docker compose up --build
 ```

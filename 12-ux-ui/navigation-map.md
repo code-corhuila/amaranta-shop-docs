@@ -9,7 +9,7 @@
 > (browse catalog), HU-SALES-001 (cart + checkout). There is no API Gateway or service discovery
 > yet — the single frontend calls the single backend directly. Those pieces belong to the
 > **target** microservices architecture (`09-microservices/`, ADR-004/ADR-005) and are added when
-> a bounded context is actually extracted — see `amaranta-shop-mvp/docs/path-to-microservices.md`
+> a bounded context is actually extracted — see `amaranta/docs/path-to-microservices.md`
 > in the implementation repo for the extraction plan.
 
 ---
@@ -136,4 +136,4 @@ HU-SALES-001 (checkout requires a JWT), not a separately counted HU in this MVP'
 - User stories these flows implement → `04-requirements/user-stories.md`
 - Domain invariants referenced above → `02-domain/entities-and-rules.md`
 - Path to the target microservices navigation (API Gateway in front of this same frontend) →
-  `amaranta-shop-mvp/docs/path-to-microservices.md`
+  `amaranta/docs/path-to-microservices.md`
