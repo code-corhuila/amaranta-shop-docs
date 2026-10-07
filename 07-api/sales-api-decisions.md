@@ -61,7 +61,7 @@ on — **it is always 400**, even when the violation is not a validation problem
 
 `guidelines.md` itself lists `409` for "Conflict (e.g. email already registered)". The filter does
 not use it for anything. This is a real inconsistency, not a documentation oversight — see
-[G-1](#g-1-domain-conflicts-and-missing-resources-are-reported-as-400).
+[G-1](#g-1--domain-conflicts-and-missing-resources-are-reported-as-400).
 
 ### 1.3 Nest's own built-in exceptions — auth, role, and "not found" all share one shape
 
@@ -111,7 +111,7 @@ guarded route on `JwtAuthGuard` alone turns the same failure into a 401.
 `OptionalJwtAuthGuard` deliberately over the `JwtAuthGuard` every other write endpoint in this
 controller uses — someone had to pick that guard on purpose. Whether the silent degrade on an
 *invalid* (vs. absent) token was the same deliberate choice, or a side effect of reusing the guard
-as-is, is not something the code alone can answer — see [G-5](#g-5-an-expired-token-on-checkout-fails-silently-not-loudly).
+as-is, is not something the code alone can answer — see [G-5](#g-5--an-expired-token-on-checkout-fails-silently-not-loudly).
 
 **Consequence, and the gap it exposes.** `sales-service.yaml` currently declares
 `security: [bearerAuth: []]` at the document root with no per-operation override on `POST
@@ -171,21 +171,31 @@ time zone, with no explicit `TZ` handling anywhere in `shop-hours.vo.ts`.
 **Why closing this matters.** It is currently correct only because the one environment this has
 been verified in runs with the store's own time zone. It is not a bug today; it is an assumption
 that becomes a bug the day this container runs anywhere else — see
-[G-3](#g-3-shophours-has-no-explicit-time-zone).
+[G-3](#g-3--shophours-has-no-explicit-time-zone).
 
-### D-S6 · A checkout that fails mid-reservation leaves no compensation, by design-for-now
+### D-S6 · A rejected checkout gives its stock reservation back — best-effort, not transactional
 
-**Decision, documented as a known simplification, not fixed here.** `CheckoutUseCase` calls
-`ProductStockPort.reserve()` (decrements stock in Catalog, in-process) **before** building and
-saving the `Order`. If `orderRepository.save()` or event publishing fails after a successful
-reservation, the stock decrement is not rolled back — there is no compensation step.
+**Decision.** `CheckoutUseCase` calls `ProductStockPort.reserve()` (decrements stock in Catalog,
+in-process) **before** building and saving the `Order`, because the order's lines need the
+product name and price that only Catalog can answer. Everything that can fail between that
+reservation and the saved order — `Order.checkout()` rejecting the request (`INV-ORDER-003`,
+`-006`, `-007`, `-008`) or `orderRepository.save()` throwing — is caught, and the reservation is
+returned through `ProductStockPort.release()` before the error propagates. A rejected checkout
+leaves every product's stock unchanged. Publishing `OrderCreated` is **outside** that block on
+purpose: once the order is saved its stock is spoken for, so a failing event bus must not hand
+the units back.
 
-**Why this is acceptable to leave open, per `path-to-microservices.md`.** That document already
-names this exact gap at the monolith stage: distributed-transaction/Saga handling is explicitly
-listed there as something this MVP does not solve yet, because today both operations run in one
-process and share one failure domain. This decision doesn't reopen that discussion — it just
-confirms, from the Sales side, that the gap `path-to-microservices.md` already declared is real
-and reachable through `POST /orders` specifically, not only a theoretical risk of a future split.
+**Why it was not always like this.** The first version had no `release`: the three
+`Order.checkout()` rejections above — the likeliest ones, a closed store on a Sunday among them —
+silently consumed the stock of every line of the rejected request. Found by reading the use case
+while writing `specs/checkout.md`, covered now by the five tests under *"a rejected checkout leaves
+the stock of every product unchanged"* in `checkout.use-case.spec.ts`.
+
+**What it still is not.** The two calls — reserve in Catalog, save in Sales — are separate
+transactions, so this is a compensation, not atomicity. If `release()` itself fails, or the process
+dies between the reservation and the save, the units stay reserved with no order behind them. That
+residue is what `path-to-microservices.md` already declares as the Saga / outbox work this MVP
+defers — see [G-4](#g-4--a-reservation-can-still-outlive-its-order-d-s6).
 
 ---
 
@@ -198,7 +208,7 @@ and reachable through `POST /orders` specifically, not only a theoretical risk o
 | 400 | Missing/invalid field (`items` empty, `quantity < 1`, malformed `productId`, missing `deliveryAddress` on a `DELIVERY` order) | §1.1 — Nest `ValidationPipe` default |
 | 400 | `AGGR-INV-ORDER-008` — store closed right now | §1.2 — `code: "INV-ORDER-008"` |
 | 400 | `AGGR-INV-ORDER-003/004/006` — duplicate product line, empty item list past DTO validation, or whitespace-only contact fields (D-S4) | §1.2 |
-| 400 | `PRODUCT_NOT_FOUND` — a `productId` doesn't exist or the product is inactive | §1.2 — **not a 404**, see [G-1](#g-1-domain-conflicts-and-missing-resources-are-reported-as-400) |
+| 400 | `PRODUCT_NOT_FOUND` — a `productId` doesn't exist or the product is inactive | §1.2 — **not a 404**, see [G-1](#g-1--domain-conflicts-and-missing-resources-are-reported-as-400) |
 | 400 | `INV-PRODUCT-002` — insufficient stock for a requested quantity | §1.2 — **not a 409**, see G-1 |
 
 ### `POST /orders/in-store` · receptionist-assisted checkout
@@ -258,9 +268,11 @@ body no endpoint sends. **Owner: unassigned.**
 `shop-hours.vo.ts` should take a zone (config or fixed to the store's) instead of reading the
 process's local time. **Owner: unassigned.**
 
-### G-4 · No compensation for a reservation that outlives its order (D-S6)
+### G-4 · A reservation can still outlive its order (D-S6)
 
-Tracked here for Sales specifically; the general version of this gap is already declared in
+Narrowed, not closed: the ordinary rejections now release the reservation (D-S6), so what is left
+is the unrecoverable remainder — `release()` failing, or the process dying between reserve and
+save. Tracked here for Sales specifically; the general version of this gap is already declared in
 `path-to-microservices.md` under "What this MVP deliberately does not solve yet" — Saga /
 distributed transactions. **Owner: unassigned**, and correctly so until the team commits to
 extracting `sales-service`/`catalog-service` — building a Saga for a call that is still
