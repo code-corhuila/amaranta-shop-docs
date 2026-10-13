@@ -6,8 +6,12 @@
 
 ## Versioning
 
-URL-based: `/api/v1/...`. The monolith mounts every controller under this prefix
-(see `apps/api/src/main.ts`).
+The current Amaranta monolith does not mount a global `/api/v1` prefix in code.
+Controllers are exposed directly at `/auth`, `/products`, and `/orders` by their
+resource routes (see `apps/api/src/.../*.controller.ts`). When the system is later
+split into independent services, the target contract for the service boundary can
+still be `/api/v1/...`, but the implementation contract must describe the current
+runtime accurately before requiring a gateway versioning layer.
 
 ## Endpoint naming
 
@@ -15,15 +19,27 @@ URL-based: `/api/v1/...`. The monolith mounts every controller under this prefix
   `GET /pets`
 - Nouns, not verbs, for the resource itself — action-style endpoints are the
   documented exception, not the rule (`POST /orders/{id}/mark-paid`,
-  `POST /appointments/{id}/cancel`, `POST /admin/products/{id}/activate`): used only
-  when the operation is a state transition on an existing resource, not a CRUD op
+  `POST /appointments/{id}/cancel`): used only when the operation is a state
+  transition on an existing resource, not a CRUD op
 - camelCase for path parameters (`{productId}`, `{appointmentId}`, `{petId}`)
 
 ## Pagination
 
-Query params: `?page=1&pageSize=50` (1-indexed, default `pageSize=50`). Every
-paginated response returns `{ data: [...], meta: PaginatedMeta }` —
-see `_shared.yaml#/components/schemas/PaginatedMeta`.
+The current implementation uses offset-based pagination with numeric query params:
+`?page=1&pageSize=50`.
+
+- `page` is 1-indexed and defaults to `1`
+- `pageSize` defaults to `50`
+- the runtime caps `pageSize` at `50` (`MAX_PAGE_SIZE = 50`)
+- empty result sets still return the paginated envelope, e.g. `{ items: [], page: 1,
+  pageSize: 50, total: 0 }`
+- the delivery contract currently uses `{ items, page, pageSize, total }` instead of
+  `{ data, meta }` because that is the shape produced by `ListProductsUseCase` in
+  the monolith today
+
+This is the behavior to document for the current code. Any future shift to a
+`data/meta` envelope should be treated as an explicit cross-service contract
+change, not an implicit monolith convention.
 
 ## Standard responses
 
@@ -41,18 +57,22 @@ see `_shared.yaml#/components/schemas/PaginatedMeta`.
 
 ## Error format
 
-Every error response follows `_shared.yaml#/components/schemas/ErrorResponse`:
+The current implementation does not yet use the shared ErrorResponse schema
+uniformly. Domain-level exceptions are filtered by
+`DomainExceptionFilter`, which returns a minimal payload:
 
 ```json
 {
-  "error": "VALIDATION_ERROR",
-  "message": "The email field is required",
-  "details": [{ "field": "email", "message": "required" }]
+  "statusCode": 400,
+  "code": "INV-PRODUCT-003",
+  "message": "quantity to decrement must be positive"
 }
 ```
 
-`error` is a `SCREAMING_SNAKE_CASE` code consumers can branch on; `message` is for
-humans; `details` is only present for validation errors.
+This is what the code emits today; it is not yet aligned with the shared
+`ErrorResponse` contract in `_shared.yaml` (`error`, `message`, `details`). The
+contract should treat this as a pending standardization task before the service is
+split into independent microservices.
 
 ## Authorization
 
