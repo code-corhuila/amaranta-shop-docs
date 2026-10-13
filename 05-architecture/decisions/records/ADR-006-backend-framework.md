@@ -2,7 +2,7 @@
 
 - **ID:** ADR-006
 - **Date:** 2026-08-25
-- **Status:** Accepted
+- **Status:** Partially superseded by [ADR-012](./ADR-012-stack-of-extracted-services.md) — still valid for the monolith, not for the extracted services
 - **Authors:** Brandow Claros — Tech Lead / Full-stack developer
 
 ---

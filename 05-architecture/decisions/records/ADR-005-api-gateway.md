@@ -2,7 +2,7 @@
 
 - **ID:** ADR-005
 - **Date:** 2026-08-25
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-012](./ADR-012-stack-of-extracted-services.md)
 - **Authors:** Brandow Claros — Tech Lead / Full-stack developer
 
 ---
