@@ -10,6 +10,18 @@ and how every document relates to the others.
 
 ---
 
+## This instance: Amaranta
+
+This copy of the framework documents **Amaranta**, a pet shop + veterinary clinic MVP.
+The documentation lives here; the application code lives in a separate repo:
+
+- **Code repo:** [github.com/BrandowC/amaranta](https://github.com/BrandowC/amaranta)
+- **Specs (spec-driven development):** [`specs/checkout.md`](./specs/checkout.md) — Sales checkout as
+  the first service extracted from the monolith (Strangler Fig): rules, tests, contract changes,
+  cutover and definition of done
+
+---
+
 ## How to use this framework
 
 1. **Fork** (or copy the structure) into your project repository.

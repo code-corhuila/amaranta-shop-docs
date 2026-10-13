@@ -1,7 +1,7 @@
 # Wireframes
 
 > Low-fidelity structure of the 5 screens that exist in the monolith MVP. These are drawn from
-> the actual running application (`amaranta-shop-mvp/apps/web`), not from a pre-implementation
+> the actual running application (`amaranta/apps/web`), not from a pre-implementation
 > mockup — the MVP was built first; this documents its real structure, per
 > `12-ux-ui/README.md`'s instruction to focus on structure, not colors (see
 > `12-ux-ui/design-system.md` for the actual visual tokens).

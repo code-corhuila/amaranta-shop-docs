@@ -5,7 +5,7 @@
 > **Rule:** Before creating a new component, check here if it already exists.
 
 > **Source of truth:** these tokens are not aspirational — they are transcribed directly from
-> `amaranta-shop-mvp/apps/web/tailwind.config.ts` and `apps/web/app/globals.css` in the
+> `amaranta/apps/web/tailwind.config.ts` and `apps/web/app/globals.css` in the
 > implementation repo. If a token changes in code, update it here too.
 
 ---
@@ -178,6 +178,6 @@ noted here so it's an explicit scope decision, not an oversight.
 
 - Navigation map → `12-ux-ui/navigation-map.md`
 - Wireframes → `12-ux-ui/wireframes.md`
-- Implementation source of these tokens → `amaranta-shop-mvp/apps/web/tailwind.config.ts`,
-  `amaranta-shop-mvp/apps/web/app/globals.css`
+- Implementation source of these tokens → `amaranta/apps/web/tailwind.config.ts`,
+  `amaranta/apps/web/app/globals.css`
 - UX non-functional requirements → `04-requirements/non-functional.md`
