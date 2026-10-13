@@ -5,8 +5,8 @@
 | **ID** | ADR-001 |
 | **Date** | 2024-01-10 |
 | **Status** | Accepted |
-| **Authors** | María García — Tech Lead |
-| **Reviewers** | Carlos Méndez, Sofía Torres, Andrés Ruiz — Development team |
+| **Authors** | Brandow Claros — Tech Lead / Product Owner / Full-stack developer |
+| **Reviewers** | N/A — solo project |
 
 ---
 
