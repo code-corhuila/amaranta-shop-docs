@@ -33,5 +33,6 @@ ADRs document important architectural decisions. Each file = one decision.
 | ADR-011 | Identity Design: the Security Service Owns Accounts, Tokens and Revocation | Accepted | 2026-10-07 |
 | ADR-012 | Stack of the Extracted Services: Java, Python and nginx | Accepted | 2026-10-07 |
 | ADR-013 | Monolith First: Strangler Fig with Extraction Triggers | Accepted | 2026-10-07 |
+| ADR-014 | Front-End Framework: React 19 with Module Federation | Accepted | 2026-10-14 |
 
 > Add rows here as you create ADRs in `records/`
