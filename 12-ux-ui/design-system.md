@@ -53,6 +53,22 @@ background instead of pure white. (Superseded the earlier amaranth-pink / sage-g
 --color-success: var(--color-ocean-500);
 ```
 
+### Contrast audit (2026-10-14)
+
+The pairs the components draw were measured (WCAG 2.2 relative luminance). The brand tones above are unchanged; four
+**semantic** tokens take the next tone of the same palette, because the original pairing failed:
+
+| Pair as first written | Ratio | Needs | Semantic token used instead | Ratio |
+|---|---|---|---|---|
+| White text on `ocean-500` (the "Agregar" button) | 3.3:1 | 4.5:1 | `--btn-add-bg: ocean-600` (hover `ocean-700`) | 4.8:1 / 7.1:1 |
+| Error text `#ef4444` on white | 3.8:1 | 4.5:1 | `--field-error: ember-600` | 8.0:1 |
+| A field's border at 15% ink on white | 1.3:1 | 3:1 (edge of a control) | `--field-border: #6e7f8b` (60% ink) | 4.1:1 |
+| The secondary button's `ember-300` border on cream | 2.2:1 | 3:1 | `--btn-secondary-border: ember-400` | 3.4:1 |
+
+Everything else passes: ink on cream 12.9:1, white on `ember-500` 5.9:1, `ember-500` links on cream 5.1:1, `ember-700` headings
+on cream 9.6:1. The implementation is plain CSS custom properties, global in the shell and used by every portal, so a
+colour changes in one place (`amaranta-shop-front`, `src/styles/tokens.css`).
+
 ### Typography
 
 ```css
@@ -170,7 +186,7 @@ noted here so it's an explicit scope decision, not an oversight.
 | Form labels | Every input has an associated `<label htmlFor>` |
 | Keyboard navigation | Native `<button>`/`<a>`/`<input>` elements throughout — no custom widgets that trap focus |
 | Alt text | Product images use the product name as `alt` |
-| Color contrast | Not formally audited against WCAG AA yet — flagged as a follow-up, not verified |
+| Color contrast | **Audited on 2026-10-14** against WCAG 2.2 AA (4.5:1 for text, 3:1 for the edge of a control): four pairs failed and have a corrected semantic token (see *Contrast audit* below). The tokens of `amaranta-shop-front` (`src/styles/design.test.ts`) check every pair on every build |
 
 ---
 
