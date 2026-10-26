@@ -61,6 +61,10 @@ which go in the CI/CD pipeline, which are manual.
 | [rest] | 80% | Required | Recommended |
 ```
 
+### `cross-repository-verification.md`
+The integration evidence contract for a change that crosses Gateway, a domain API, the Front shell and documentation.
+It defines request-context propagation, repository gates, release evidence and the difference between a PR label and a release tag.
+
 ### `code-review.md`
 Team code review guide.
 **Fill in:** what to verify in a PR (beyond "it works"), list of required checks,
