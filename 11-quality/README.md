@@ -65,6 +65,11 @@ which go in the CI/CD pipeline, which are manual.
 The integration evidence contract for a change that crosses Gateway, a domain API, the Front shell and documentation.
 It defines request-context propagation, repository gates, release evidence and the difference between a PR label and a release tag.
 
+### `integration-readiness-review.md`
+The sequential reviewer record for deciding whether the documented 80-percent
+pre-release integration threshold is supported by evidence. It links the active
+PRs, records external blockers and prevents blocked checks from being reported as passes.
+
 ### `code-review.md`
 Team code review guide.
 **Fill in:** what to verify in a PR (beyond "it works"), list of required checks,
