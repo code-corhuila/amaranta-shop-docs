@@ -69,6 +69,10 @@ workflow, integration waves, gates, evidence and explicit actions for the known 
 The reverse-engineered work order after the v1 minimum journey passes. It maps demonstrated
 requirements to evidence and sequences persistent topology, identity, asynchronous work and operations.
 
+### B2 persistent-topology contract
+The contractual three-increment sequence for runtime parity, migration composition and QA journey
+evidence. It also records the explicit blockers that prevent a v1.0.0 release claim.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
