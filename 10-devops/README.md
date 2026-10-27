@@ -65,6 +65,10 @@ how it is deployed, what data it has.
 The ordered repository-by-repository promotion plan. It defines child-to-parent PR
 workflow, integration waves, gates, evidence and explicit actions for the known blockers.
 
+### `v1-implementation-backlog.md`
+The reverse-engineered work order after the v1 minimum journey passes. It maps demonstrated
+requirements to evidence and sequences persistent topology, identity, asynchronous work and operations.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
