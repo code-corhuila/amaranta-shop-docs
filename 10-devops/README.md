@@ -61,6 +61,10 @@ how it is deployed, what data it has.
 | prod | api.domain.com | Production | Ops team | Real data | Manual (double approval) |
 ```
 
+### `integration-promotion-plan.md`
+The ordered repository-by-repository promotion plan. It defines child-to-parent PR
+workflow, integration waves, gates, evidence and explicit actions for the known blockers.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
