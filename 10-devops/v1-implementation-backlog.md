@@ -26,6 +26,14 @@ the work needed to make that path releasable and operable.
 | B4: asynchronous boundary | Add only the workflow and worker capabilities required by an accepted business event. | Workflow, Worker, Sales, Catalog | Event schema, broker, retry, idempotency, dead-letter policy and compensation are tested. |
 | B5: operational release | Make v1 observable, recoverable and promotable. | Infra PostgreSQL observability, Gateway, APIs, Docs | Metrics, traces, alert ownership, backup/restore, rollback and load evidence are accepted. |
 
+## B2 progress
+
+The executable local scope of B2 is complete: both database engines have a runtime
+preflight and compose their domain-owned migration runner. The evidence, integrated
+commits and remaining QA deployment blockers are recorded in
+b2-execution-evidence.md. B2.3 remains blocked until the platform owner provides
+the approved QA topology, secret delivery and backup or restore inputs.
+
 ## Rule of expansion
 
 Complete and validate one block before opening the next. A block may use child branches

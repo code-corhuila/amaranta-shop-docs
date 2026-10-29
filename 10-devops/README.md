@@ -73,6 +73,10 @@ requirements to evidence and sequences persistent topology, identity, asynchrono
 The contractual three-increment sequence for runtime parity, migration composition and QA journey
 evidence. It also records the explicit blockers that prevent a v1.0.0 release claim.
 
+### B2 execution evidence
+The integrated commits, reproducible local checks, pinned database contracts and the explicit
+inputs still required for the approved QA journey.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
