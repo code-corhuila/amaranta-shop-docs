@@ -41,12 +41,28 @@ Risk is likelihood (L) multiplied by impact (I), both on a 1-3 scale.
 | S | A caller sends `Authorization: Bearer not-a-token` to `GET /api/v1/orders` or an admin Catalog route. The Gateway deliberately checks only that the header exists, so accepting it would depend on a missing or incorrect service verifier. | 2 | 3 | 6 | The Gateway blocks a missing header; its routing suite proves a malformed token is forwarded for the service to reject. | Sales, Catalog, and Workflow must independently reject invalid signature, issuer, audience, expiry, and unauthorized role claims; add negative tests per protected endpoint. |
 | T | A caller uses `../`, `%2e%2e`, or encoded slashes below `/api/v1/products/` to reach `internal/products/reserve-stock` and alter stock outside the Sales workflow. | 1 | 3 | 3 | The Gateway uses exact locations or prefixes ending in `/`; current routing tests assert `404` for direct and encoded traversal attempts. | Keep these cases in Gateway CI whenever routes change; the Catalog internal endpoint must also require a service-to-service identity when that boundary is implemented. |
 | R | A caller disputes an order creation or status change and supplies an arbitrary but syntactically valid `X-Correlation-Id`, leaving no durable actor-to-order evidence at the edge. | 2 | 2 | 4 | The Gateway validates or generates the correlation identifier and returns it in the response and error envelope. | Sales must record order id, authenticated subject when present, idempotency key, action, outcome, and correlation id in an audit record; a test must prove rejected attempts are recorded without logging tokens or bodies. |
+| I | A browser from an untrusted origin reads a credentialed error response or correlation data because a new route bypasses the Gateway's CORS allow-list. | 2 | 3 | 6 | CORS headers are produced centrally and the current test suite proves an unknown origin receives no grant. | Keep origin allow-list and exposed-header assertions in CI for every new route; production origins must be explicit configuration, not a reflected request header. |
+| D | A client floods public catalog reads or anonymous `POST /api/v1/orders`, exhausting upstream connections and preventing legitimate checkout. | 2 | 3 | 6 | nginx limits proxied requests to 100 per minute per source address with burst 40; the smoke suite verifies a `429` response. | Measure rejected and upstream requests, set a reviewed capacity target, and test that a Sales outage affects only Sales routes while Catalog remains available. |
+| E | A customer presents a valid non-admin token to `/api/v1/admin/products/*`; the Gateway forwards any present credential and an incomplete Catalog role check would grant stock or product administration. | 2 | 3 | 6 | The Gateway rejects a missing credential and Catalog is specified to check `ADMIN`. | Catalog must reject a valid non-admin token with `403` for create, patch, stock, activate, and delete operations; run that negative authorization suite in its CI. |
 
 ## Initial ranking
 
-1. **S - risk 6:** service-side verification is the final authorization control after the Gateway's cheap header filter.
-2. **R - risk 4:** trace correlation exists, but accountability requires a durable Sales audit event.
-3. **T - risk 3:** the Gateway currently blocks the known traversal forms; regression coverage must remain mandatory.
+1. **S - risk 6:** service-side verification is the final authentication control after the Gateway's cheap header filter.
+2. **I - risk 6:** CORS is central today, but a route-level exception could expose data to an untrusted browser origin.
+3. **D - risk 6:** the limit is configured and tested, but its capacity and operational signal are not yet measured.
+4. **E - risk 6:** a present credential is not proof of `ADMIN`; Catalog must enforce the role on every mutation.
+5. **R - risk 4:** trace correlation exists, but accountability requires a durable Sales audit event.
+6. **T - risk 3:** the Gateway currently blocks the known traversal forms; regression coverage must remain mandatory.
+
+## Residual risk
+
+The boundary accepts two deliberate residual risks for the current academic
+increment. Anonymous checkout remains available at `POST /api/v1/orders`, so
+abuse cannot be eliminated by authentication; rate limiting and Sales input
+validation contain it while a stronger abuse-control design is deferred. Also,
+the Gateway does not parse or validate JWTs by design. That reduces edge
+complexity but makes the independent verifier and role checks in Sales, Catalog,
+and Workflow non-negotiable release gates.
 
 ## Evidence consulted
 
