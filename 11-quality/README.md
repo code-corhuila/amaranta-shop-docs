@@ -70,6 +70,10 @@ The sequential reviewer record for deciding whether the documented 80-percent
 pre-release integration threshold is supported by evidence. It links the active
 PRs, records external blockers and prevents blocked checks from being reported as passes.
 
+### `v1-minimal-e2e-baseline.md`
+The reverse-engineered v1.0.0 customer journey based on the real-stack check. It fixes
+the tested repository revisions, proven behavior, exclusions and promotion gates.
+
 ### `code-review.md`
 Team code review guide.
 **Fill in:** what to verify in a PR (beyond "it works"), list of required checks,
