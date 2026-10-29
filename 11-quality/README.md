@@ -74,6 +74,11 @@ PRs, records external blockers and prevents blocked checks from being reported a
 The reverse-engineered v1.0.0 customer journey based on the real-stack check. It fixes
 the tested repository revisions, proven behavior, exclusions and promotion gates.
 
+### `v1-rc-readiness.md`
+The release-candidate ledger. It pins the multi-repository customer-journey matrix,
+distinguishes passed local evidence from pending or blocked release gates, and states
+the only sequence that can create `amaranta-v1.0.0-rc.1` without inventing a tag.
+
 ### `code-review.md`
 Team code review guide.
 **Fill in:** what to verify in a PR (beyond "it works"), list of required checks,
