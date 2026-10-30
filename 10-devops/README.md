@@ -77,6 +77,22 @@ evidence. It also records the explicit blockers that prevent a v2.0.0 release cl
 The integrated commits, reproducible local checks, pinned database contracts and the explicit
 inputs still required for the approved QA journey.
 
+### C1 Clinical timeline production increment
+The production-oriented extraction plan for Scheduling and Clinical Records. It turns an
+`AppointmentCompleted` event into an idempotent, authorized and indexed pet timeline without
+introducing a shared database or an unapproved analytics service. It also records the B3,
+repository, platform and recovery gates that must be accepted before implementation begins.
+
+### PR sizing and incremental-delivery policy
+The review rule for every increment: a maximum of 500 executable changed lines per PR, including
+tests, migrations, scripts and executable configuration. It defines how to count, split, test,
+promote and index each delivery slice without hiding a large change behind documentation.
+
+### C1 execution and release register
+The live checklist and evidence ledger for Clinical timeline delivery. It identifies each affected
+repository, records which ones are blocked or intentionally unchanged, and separates the current
+v2.0 baseline from the future C1 `v2.1.0-rc.1` candidate without creating either tag early.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
