@@ -77,6 +77,10 @@ evidence. It also records the explicit blockers that prevent a v2.0.0 release cl
 The integrated commits, reproducible local checks, pinned database contracts and the explicit
 inputs still required for the approved QA journey.
 
+### B3 identity implementation plan
+The dependency-ordered Security increment: data ownership, immutable token contract, child PR
+sequence, bottleneck controls, consumer integration and its exact definition of done.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
