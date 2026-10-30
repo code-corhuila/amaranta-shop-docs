@@ -88,6 +88,11 @@ The review rule for every increment: a maximum of 500 executable changed lines p
 tests, migrations, scripts and executable configuration. It defines how to count, split, test,
 promote and index each delivery slice without hiding a large change behind documentation.
 
+### C1 execution and release register
+The live checklist and evidence ledger for Clinical timeline delivery. It identifies each affected
+repository, records which ones are blocked or intentionally unchanged, and separates the current
+v2.0 baseline from the future C1 `v2.1.0-rc.1` candidate without creating either tag early.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
