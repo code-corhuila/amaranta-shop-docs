@@ -14,7 +14,7 @@ the platform owner.
 | Existing fact | Source of truth | Consequence |
 |---|---|---|
 | PostgreSQL has one instance, an external platform network, per-environment volumes and local-only published ports. | amaranta-shop-infra-postgres at 07e4351, including [PR #6](https://github.com/code-corhuila/amaranta-shop-infra-postgres/pull/6) | Runtime readiness can be checked without exposing credentials or changing a migration. |
-| MongoDB follows the same ownership model for Catalog, but has no equivalent runtime preflight. | amaranta-shop-infra-mongo at b6574c2 | Mongo is the next symmetric runtime gap; it must be closed before a combined topology is claimed. |
+| MongoDB follows the same ownership model for Catalog and now has its equivalent runtime preflight. | amaranta-shop-infra-mongo at 75bd7f8, [PR #4](https://github.com/code-corhuila/amaranta-shop-infra-mongo/pull/4) | Runtime parity is evidenced locally; the remaining combined-topology gap is approved QA inputs and the B2.3 journey. |
 | Catalog and Sales already own migration runners, roles and rebuild checks. | amaranta-shop-catalog-db at 070946d; amaranta-shop-sales-db at 949976a | Infrastructure may invoke migrations but must not duplicate or edit their definitions. |
 | The real-stack journey already composes Front, both portals, Gateway, APIs and both data engines. | amaranta-shop-sales-portal at d9ff5cf | The final B2 proof should reuse the real journey, replacing throwaway data only after the runtime and migrations are verified. |
 
@@ -47,8 +47,7 @@ These rules remain true in all three increments:
 Each row is a separate small PR. The preceding PR must be merged and its evidence
 recorded before implementation of the next row starts.
 
-1. Create feat/mongo-runtime-preflight from the current Mongo develop; target Mongo
-   develop. Review its Docker proof and merge it before B2.2.
+1. The Mongo runtime preflight is merged through [Infra Mongo PR #4](https://github.com/code-corhuila/amaranta-shop-infra-mongo/pull/4); use its pinned evidence as the B2.1 input rather than reopening the same work.
 2. Create one child PR per repository for B2.2 because the migration runner belongs
    to its database repository and the invocation belongs to its infrastructure
    repository. Merge each child only after its own rebuild check and composition
@@ -61,11 +60,11 @@ recorded before implementation of the next row starts.
 
 ## Tag and release rule
 
-No B2.1 or B2.2 PR creates v1.0.0: they establish a capability, not a release.
+No B2.1 or B2.2 PR creates v2.0.0: they establish a capability, not a release.
 After B2.3 is accepted, Docs records a release-candidate manifest with the exact
-component SHAs and test evidence. Only when the v1 implementation backlog gates are
-accepted may the release owner create the annotated v1.0.0-rc.1 candidate tag in
-the agreed release repository. The final v1.0.0 tag remains blocked until the
+component SHAs and test evidence. Only when the v2 implementation backlog gates are
+accepted may the release owner create the annotated v2.0.0-rc.1 candidate tag in
+the agreed release repository. The final v2.0.0 tag remains blocked until the
 release decision in v1-implementation-backlog.md is satisfied.
 
 ## Explicit blockers

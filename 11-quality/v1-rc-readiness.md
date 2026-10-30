@@ -1,4 +1,4 @@
-# Amaranta v1.0.0-rc.1 readiness
+# Amaranta v2.0.0-rc.1 readiness
 
 **Decision date:** 2026-10-29  
 **Current decision:** **HOLD - do not create the tag yet.**
@@ -9,9 +9,11 @@ replace the executable evidence in
 [v1-minimal-e2e-baseline.md](./v1-minimal-e2e-baseline.md) or the implementation
 order in [v1-implementation-backlog.md](../10-devops/v1-implementation-backlog.md).
 
-## What `amaranta-v1.0.0-rc.1` means
+**Traceability:** Refs: code-corhuila/amaranta-shop-docs#41.
 
-`amaranta-v1.0.0-rc.1` is a **product release-candidate manifest**, not an
+## What `amaranta-v2.0.0-rc.1` means
+
+`amaranta-v2.0.0-rc.1` is a **product release-candidate manifest**, not an
 identical component version. It pins one tested revision of every participant
 in the minimal customer journey. It belongs in Docs as an annotated release
 reference after review; it must not be created on an open PR branch or inferred
@@ -62,10 +64,10 @@ shared version.
    command, date, result, and any intentional substitutions to the baseline.
 4. Record the official CI decision: green remote checks or an accepted incident
    with owner and expiry.
-5. Create the annotated Docs reference `amaranta-v1.0.0-rc.1`, whose message
+5. Create the annotated Docs reference `amaranta-v2.0.0-rc.1`, whose message
    links this matrix and the successful evidence. Do not create matching tags in
    every repository merely for naming symmetry.
-6. Promote to `amaranta-v1.0.0` only after the target topology, identity
+6. Promote to `amaranta-v2.0.0` only after the target topology, identity
    boundary, recovery evidence, and release approval are complete or formally
    excluded with recorded risk acceptance.
 

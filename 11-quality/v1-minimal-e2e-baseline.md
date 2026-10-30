@@ -1,10 +1,10 @@
-# Amaranta v1.0.0 minimal end-to-end baseline
+# Amaranta v2.0.0 minimal end-to-end baseline
 
 Initially verified: 2026-10-26. Reconfirmed against merged application branches:
 2026-10-27.
 
 This document is reverse-engineered from the current repositories and their executable
-Sales Portal real-stack script. It defines the smallest functioning v1.0.0 scope with
+Sales Portal real-stack script. It defines the smallest functioning v2.0.0 scope with
 evidence from real services. It is a release-candidate baseline, not a production
 approval.
 
@@ -48,7 +48,7 @@ Catalog Portal, Sales Portal and Front with their merged develop branches.
 
 ## Runtime boundary
 
-| Component | Role in v1.0.0 | Address or dependency |
+| Component | Role in v2.0.0 | Address or dependency |
 |---|---|---|
 | Front shell | Hosts navigation, session and API client | Host port 4200 |
 | Catalog Portal | Catalog remote consumed by Front | Host port 4201 |
@@ -93,7 +93,7 @@ The tested application revisions are now merged in their target branches. They b
 a taggable release matrix only after the documentation evidence is approved and the
 remaining CI and topology gates are resolved or formally accepted.
 
-## Exclusions from the v1.0.0 minimum
+## Exclusions from the v2.0.0 minimum
 
 - The script generates a throwaway signing key and test tokens; it does not prove a
   deployed Security service or an identity-provider integration.
@@ -104,7 +104,7 @@ remaining CI and topology gates are resolved or formally accepted.
 - GitHub Actions did not execute remote checks because of the organization billing
   lock. The local result does not remove that CI blocker.
 
-## Sequential promotion to v1.0.0
+## Sequential promotion to v2.0.0
 
 1. Review and merge this child documentation PR into the Docs parent branch.
 2. Obtain the required CODEOWNER approval for the Docs parent PR to main.
@@ -112,9 +112,9 @@ remaining CI and topology gates are resolved or formally accepted.
    script against those SHAs.
 4. Resolve or formally accept the GitHub Actions billing incident with the responsible
    reviewer.
-5. Create an annotated release-candidate reference named amaranta-v1.0.0-rc.1 in the
+5. Create an annotated release-candidate reference named amaranta-v2.0.0-rc.1 in the
    Docs release matrix only after the preceding evidence is accepted.
-6. Promote the same matrix to amaranta-v1.0.0 only after independent review, rollback
+6. Promote the same matrix to amaranta-v2.0.0 only after independent review, rollback
    evidence and the approved target topology.
 
 Do not tag an open PR branch, a local-only commit or a test run whose component SHAs
