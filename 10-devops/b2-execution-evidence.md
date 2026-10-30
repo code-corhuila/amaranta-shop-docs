@@ -60,6 +60,6 @@ dependency-failure path.
 ## Release interpretation
 
 This completes the executable local runtime and migration scope of B2. It does not
-create a v1.0.0 tag, approve a QA deployment or replace B3 identity, B4 asynchronous
+create a v2.0.0 tag, approve a QA deployment or replace B3 identity, B4 asynchronous
 processing, or B5 operations. Those conditions remain governed by
 v1-implementation-backlog.md.

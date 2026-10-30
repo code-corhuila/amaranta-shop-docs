@@ -66,12 +66,12 @@ The ordered repository-by-repository promotion plan. It defines child-to-parent 
 workflow, integration waves, gates, evidence and explicit actions for the known blockers.
 
 ### `v1-implementation-backlog.md`
-The reverse-engineered work order after the v1 minimum journey passes. It maps demonstrated
+The reverse-engineered work order after the v2 minimum journey passes. It maps demonstrated
 requirements to evidence and sequences persistent topology, identity, asynchronous work and operations.
 
 ### B2 persistent-topology contract
 The contractual three-increment sequence for runtime parity, migration composition and QA journey
-evidence. It also records the explicit blockers that prevent a v1.0.0 release claim.
+evidence. It also records the explicit blockers that prevent a v2.0.0 release claim.
 
 ### B2 execution evidence
 The integrated commits, reproducible local checks, pinned database contracts and the explicit
