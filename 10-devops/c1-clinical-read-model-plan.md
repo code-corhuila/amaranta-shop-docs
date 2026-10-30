@@ -156,19 +156,34 @@ exponential backoff and then enter the DLQ; replay is an explicit, audited actio
 
 ## Sequential implementation PRs
 
-| Increment | Repositories | Small change | Exit evidence |
-|---|---|---|---|
-| C1.0 approved boundary | Docs, Security owners, platform owner | Resolve the four preconditions; freeze event and data classification decisions | Approved PR and no ambiguous data or credential owner |
-| C1.1 Clinical foundation | Clinical DB, Clinical API | Pet aggregate, `clinical` schema, least-privilege role, internal booking-eligibility contract and authorization tests | Clean migration, role test, owner-cross-read rejection |
-| C1.2 Scheduling foundation | Scheduling DB, Scheduling API | Appointment state machine, business-hours and no-overlap constraints, Clinical adapter with timeout | Contract test against Clinical; double-booking and unavailable-Clinical negative tests |
-| C1.3 event projection | Scheduling DB/API, Clinical DB/API, broker config | Transactional outbox, versioned `AppointmentCompleted`, idempotent Clinical consumer, retry and DLQ | Duplicate, delayed and failing-consumer tests; no duplicate draft |
-| C1.4 user path | Scheduling Portal, Clinical Portal, Front, Gateway | Authorized booking and timeline remotes; Gateway routes only | Owner/veterinarian/receptionist authorization E2E |
-| C1.5 operational proof | All C1 components, Docs | Redacted target-topology E2E, load sample, restore rehearsal and dashboards | Exact SHAs, metrics, DLQ drill and rollback/restore evidence |
+The [PR sizing policy](./pr-sizing-policy.md) applies to every slice below: each
+code PR stays at or below 500 executable changed lines, including tests,
+migrations, scripts and executable configuration. The listed budgets are ceilings,
+not targets; a smaller independently verifiable PR is preferred.
+
+| Slice | Repository and branch pattern | Focused change | Maximum executable changed lines | Exit evidence |
+|---|---|---|---:|---|
+| C1.0 | Docs `docs/c1-clinical-read-model` | Freeze data, event, security and recovery gates | 0 | Architecture review; no ambiguous owner |
+| C1.1a | Clinical DB `feat/clinical-pets-schema` | `clinical` role, pets table and owner index only | 250 | Clean migration and least-privilege test |
+| C1.1b | Clinical API `feat/pet-booking-eligibility` | Read-only internal eligibility port, adapter and negative authorization test | 450 | Contract test with synthetic pet data |
+| C1.1c | Clinical API `feat/clinical-timeline-read` | Bounded timeline query, pagination and owner-cross-read rejection | 450 | Index-backed query and authorization tests |
+| C1.2a | Scheduling DB `feat/appointment-state-schema` | Appointment states, business-hours and no-overlap constraint | 300 | Migration, overlap and invalid-hours tests |
+| C1.2b | Scheduling API `feat/booking-clinical-adapter` | Clinical adapter, timeout, fail-closed behavior and contract test | 450 | Unavailable-Clinical and valid-pet tests |
+| C1.3a | Scheduling DB `feat/appointment-outbox` | Outbox table and atomic completion/outbox persistence | 350 | Transaction rollback test |
+| C1.3b | Scheduling API `feat/publish-appointment-completed` | Versioned event schema and outbox publisher | 450 | Published payload schema and correlation test |
+| C1.3c | Clinical DB `feat/clinical-processed-events` | Idempotency table and unique event source protection | 250 | Duplicate event migration test |
+| C1.3d | Clinical API `feat/consume-appointment-completed` | Consumer, draft creation, bounded retry and DLQ hand-off | 500 | Duplicate, delayed and failing-consumer tests |
+| C1.4a | Scheduling Portal `feat/appointment-booking` | Authorized booking remote only | 450 | Role and form validation tests |
+| C1.4b | Clinical Portal `feat/pet-timeline` | Authorized timeline remote only | 450 | Owner/veterinarian authorization tests |
+| C1.4c | Front or Gateway `feat/clinical-routes` | Remote registration or route declaration, never clinical rules | 200 | Route and module-loading tests |
+| C1.5 | One repository per evidence PR | E2E harness, metrics, DLQ drill or restore proof; split again if needed | 500 | Exact command, redacted result and commit matrix |
 
 Every increment starts from the target branch in a child branch and enters through
 a reviewed PR. Promotion follows the repository branching policy by applying
 accepted commits with `cherry-pick -x`; permanent branches are not merged into
 each other. C1.3 does not start until C1.1 and C1.2 have their independent tests.
+No slice may include a second repository merely to keep an end-to-end scenario in
+one PR; the integration record links the already-reviewed repository slices.
 
 ## Explicit bottlenecks and stop conditions
 

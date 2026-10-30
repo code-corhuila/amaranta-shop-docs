@@ -83,6 +83,11 @@ The production-oriented extraction plan for Scheduling and Clinical Records. It 
 introducing a shared database or an unapproved analytics service. It also records the B3,
 repository, platform and recovery gates that must be accepted before implementation begins.
 
+### PR sizing and incremental-delivery policy
+The review rule for every increment: a maximum of 500 executable changed lines per PR, including
+tests, migrations, scripts and executable configuration. It defines how to count, split, test,
+promote and index each delivery slice without hiding a large change behind documentation.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
