@@ -77,6 +77,12 @@ evidence. It also records the explicit blockers that prevent a v2.0.0 release cl
 The integrated commits, reproducible local checks, pinned database contracts and the explicit
 inputs still required for the approved QA journey.
 
+### C1 Clinical timeline production increment
+The production-oriented extraction plan for Scheduling and Clinical Records. It turns an
+`AppointmentCompleted` event into an idempotent, authorized and indexed pet timeline without
+introducing a shared database or an unapproved analytics service. It also records the B3,
+repository, platform and recovery gates that must be accepted before implementation begins.
+
 ### `ci-cd.md` ⭐
 Description of the continuous integration and deployment pipeline.
 **Fill in:** what tool (GitHub Actions, GitLab CI, Jenkins), what steps it executes,
