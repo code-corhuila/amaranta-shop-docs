@@ -79,6 +79,11 @@ The release-candidate ledger. It pins the multi-repository customer-journey matr
 distinguishes passed local evidence from pending or blocked release gates, and states
 the only sequence that can create `amaranta-v2.0.0-rc.1` without inventing a tag.
 
+### `v2-rc-local-e2e-evidence.md`
+The reproducible local E2E execution record for the exact Catalog + Sales component
+SHAs. It records a passing result while preserving the QA, review, identity and
+recovery gates that still prevent release tagging.
+
 ### `code-review.md`
 Team code review guide.
 **Fill in:** what to verify in a PR (beyond "it works"), list of required checks,
