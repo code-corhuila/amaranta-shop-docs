@@ -61,6 +61,29 @@ which go in the CI/CD pipeline, which are manual.
 | [rest] | 80% | Required | Recommended |
 ```
 
+### `cross-repository-verification.md`
+The integration evidence contract for a change that crosses Gateway, a domain API, the Front shell and documentation.
+It defines request-context propagation, repository gates, release evidence and the difference between a PR label and a release tag.
+
+### `integration-readiness-review.md`
+The sequential reviewer record for deciding whether the documented 80-percent
+pre-release integration threshold is supported by evidence. It links the active
+PRs, records external blockers and prevents blocked checks from being reported as passes.
+
+### `v1-minimal-e2e-baseline.md`
+The reverse-engineered v2.0.0 customer journey based on the real-stack check. It fixes
+the tested repository revisions, proven behavior, exclusions and promotion gates.
+
+### `v1-rc-readiness.md`
+The release-candidate ledger. It pins the multi-repository customer-journey matrix,
+distinguishes passed local evidence from pending or blocked release gates, and states
+the only sequence that can create `amaranta-v2.0.0-rc.1` without inventing a tag.
+
+### `v2-rc-local-e2e-evidence.md`
+The reproducible local E2E execution record for the exact Catalog + Sales component
+SHAs. It records a passing result while preserving the QA, review, identity and
+recovery gates that still prevent release tagging.
+
 ### `code-review.md`
 Team code review guide.
 **Fill in:** what to verify in a PR (beyond "it works"), list of required checks,
