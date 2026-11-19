@@ -61,6 +61,14 @@ says "No se pudo contar" instead of a wrong number. `/admin/users` (shell) and `
 new screens. All are behind `RequireRole`: a customer who types the address is turned away **without a single request**, and a
 visitor is sent to sign in. An administrator who signs in lands on `/admin`.
 
+The orders screen shows, for each order, **what it asked for** (every product with how many), who bought, how it is
+delivered and paid, its status and its total. The users screen shows name, email, phone, role and the day.
+
+**The phone is collected at sign-up.** The users screen listed a phone for nobody because the form never asked for one.
+Creating an account now offers "Celular (opcional)": ten digits, no spaces or signs, sent only when given. Identity refuses
+anything else with a `400` (`phone must be exactly 10 digits`), because the column holds ten characters and a longer value used
+to fail in the database as a `500`. An account created before this change has no phone and shows "—".
+
 ## 3. Decisions
 
 | # | Decision | Why | Cost |
