@@ -47,7 +47,7 @@ Defined in `apps/api/src/identity/domain/value-objects/user-role.enum.ts`, match
 | `RECEPTIONIST` | Front-desk staff — registers walk-in customers, in-store checkout, marks orders paid |
 | `VETERINARIAN` | Clinical staff — adds medical records, completes medical/surgery/emergency appointments |
 | `GROOMER` | Clinical staff — completes grooming appointments |
-| `ADMIN` | Manages the product catalog (`/admin/products/*`) |
+| `ADMIN` | Manages the product catalog (`/admin/products/*`), reads every order (`GET /admin/orders`) and every account (`GET /admin/users`) — see [`admin-back-office.md`](./admin-back-office.md) |
 
 ## Enforcement
 
