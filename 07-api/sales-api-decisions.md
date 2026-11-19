@@ -135,6 +135,9 @@ client needs and no test would ever exercise past page 1.
 future admin-facing "all orders" endpoint would need real pagination and is not exempt by this
 precedent.
 
+**Update.** That endpoint now exists: `GET /api/v1/admin/orders`, paginated and bounded (limit 1 to 100),
+for the `ADMIN` role only. See [`admin-back-office.md`](./admin-back-office.md).
+
 ### D-S3 · `deliveryAddress` is required twice, and the DTO answers first
 
 **Decision.** Both layers check it: `CheckoutRequestDto` (`@ValidateIf` +
